@@ -34,17 +34,17 @@ bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.tx
                               coverage = coverage, cores = cores, perGroup = perGroup, sexCheck = sexCheck)
 bs.filtered = chrSelectBSseq(bs.filtered, seqnames = c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11",
                                                        "chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19"), order = TRUE) # removes sex chromosomes
-save(bs.filtered, file = "RData/bismark.RData")
-#load("RData/bismark.RData")
+save(bs.filtered, file = "RData/bismark_mNPTM.RData")
+#load("RData/bismark_mNPTM.RData")
 
 bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::SnowParam(workers = 1, progressbar = TRUE)) # get individual smoothened methylation values
-save(bs.filtered.bsseq,file = "RData/bsseq.RData")
-#load("RData/bsseq.RData")
+save(bs.filtered.bsseq,file = "RData/bsseq_mNPTM.RData")
+#load("RData/bsseq_mNPTM.RData")
 
 DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
 settings_env <- ls(all = TRUE)
-save(list = settings_env, file = "RData/settings.RData")
-#load("RData/settings.RData")
+save(list = settings_env, file = "RData/settings_mNPTM.RData")
+#load("RData/settings_mNPTM.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%
@@ -128,17 +128,17 @@ bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.tx
                               meta = openxlsx::read.xlsx("sample_info.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
                               testCovariate = testCovariate, adjustCovariate = adjustCovariate, matchCovariate = matchCovariate,
                               coverage = coverage, cores = 1, perGroup = perGroup, sexCheck = sexCheck)
-save(bs.filtered, file = "RData/bismark.RData")
-#load("RData/bismark.RData")
+save(bs.filtered, file = "RData/bismark_NPDOs.RData")
+#load("RData/bismark_NPDOs.RData")
 
 bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::SnowParam(workers = 1, progressbar = TRUE)) # get individual smoothened methylation values
-save(bs.filtered.bsseq,file = "RData/bsseq.RData")
-#load("RData/bsseq.RData")
+save(bs.filtered.bsseq,file = "RData/bsseq_NPDOs.RData")
+#load("RData/bsseq_NPDOs.RData")
 
 DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
 settings_env <- ls(all = TRUE)
-save(list = settings_env, file = "RData/settings.RData")
-#load("RData/settings.RData")
+save(list = settings_env, file = "RData/settings_NPDOs.RData")
+#load("RData/settings_NPDOs.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%

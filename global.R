@@ -3,12 +3,17 @@
     # plots/statistics (i.e. PCA, global density plots, average CpG methylation statistics) for PDOs and murine organoids
 
 # Get Packages --------------------------------------------------------------
-BiocManager::install("ben-laufer/DMRichR")
-BiocManager::install("RColorBrewer")
-BiocManager::install("ggplot2")
-library(DMRichR)
-library(RcolorBrewer)
-library(ggplot2)
+# Package names
+packages <- c("ggplot2", "DMRichR", "RColorBrewer")
+
+# Install packages not yet installed
+installed_packages <- packages %in% rownames(installed.packages())
+if (any(installed_packages == FALSE)) {
+  install.packages(packages[!installed_packages])
+}
+
+# Load packages
+invisible(lapply(packages, library, character.only = TRUE))
 
 # Make mNPTM PCA and global density plots -----------------------------------------------------------
 

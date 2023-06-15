@@ -55,6 +55,16 @@ MPN_sigRegions %>%
   DMRichR::DMReport(regions = MPN_regions, bs.filtered = bs.filteredMPN, coverage = coverage, name = "mNPTM_DMRs/MPN01_DMReport") %>% 
   openxlsx::write.xlsx(file = "mNPTM_DMRs/MPN01_DMRs_annotated.xlsx") # annotate DMRs
 
+print(glue::glue("Extracting individual smoothed methylation values of DMRs..."))
+bs.filtered.bsseq %>%
+  DMRichR::smooth2txt(regions = MPN_sigRegions,
+                      txt = "mNPTM_DMRs/MPN_DMR_individual_smoothed_methylation.txt")
+
+print(glue::glue("Extracting individual smoothed methylation values of background regions..."))
+bs.filtered.bsseq %>%
+  DMRichR::smooth2txt(regions = MPN_regions,
+                      txt = "mNPTM_DMRs/MPN_background_region_individual_smoothed_methylation.txt")
+
 callback <- function(hc, mat){
   sv <- svd(t(mat))$v[,c(1)]
   dend <- reorder(as.dendrogram(hc), wts = sv)
@@ -95,6 +105,16 @@ TM_sigRegions %>%
   DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %T>%
   DMRichR::DMReport(regions = TM_regions, bs.filtered = bs.filteredTM, coverage = coverage, name = "mNPTM_DMRs/TM01_DMReport") %>% 
   openxlsx::write.xlsx(file = "mNPTM_DMRs/TM01_DMRs_annotated.xlsx") # annotate DMRs
+
+print(glue::glue("Extracting individual smoothed methylation values of DMRs..."))
+bs.filtered.bsseq %>%
+  DMRichR::smooth2txt(regions = TM_sigRegions,
+                      txt = "mNPTM_DMRs/TM_DMR_individual_smoothed_methylation.txt")
+
+print(glue::glue("Extracting individual smoothed methylation values of background regions..."))
+bs.filtered.bsseq %>%
+  DMRichR::smooth2txt(regions = TM_regions,
+                      txt = "mNPTM_DMRs/TM_background_region_individual_smoothed_methylation.txt")
 
 callback <- function(hc, mat){
   sv <- svd(t(mat))$v[,c(2)]
@@ -365,6 +385,19 @@ TM_regions %>%
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
                  bin.size = 1e+06, file = "pdf", memo = "")
 file.rename("Rectangular-Manhattan.q.value.pdf", "mNPTM_DMRs/TM_manhattan.pdf")
+
+# Prepare HOMER -------------------------------------------------------------------
+prepHOMER <- function (sigRegions = sigRegions, regions = regions, dir.name = dir.name) 
+{
+  dir.create(dir.name)
+  sigRegions %>% DMRichR::gr2bed(paste(dir.name,"DMRs.bed", sep="/"))
+  sigRegions %>% plyranges::filter(stat > 0) %>% DMRichR::gr2bed(paste(dir.name,"DMRs_hyper.bed", sep="/"))
+  sigRegions %>% plyranges::filter(stat < 0) %>% DMRichR::gr2bed(paste(dir.name,"DMRs_hypo.bed", sep="/"))
+  regions %>% DMRichR::gr2bed(paste(dir.name,"background.bed", sep="/"))
+}
+
+MPN_sigRegions %>% prepHOMER(regions = MPN_regions, dir.name = "mNPTM_DMRs/MPN_HOMER")
+TM_sigRegions %>% prepHOMER(regions = TM_regions, dir.name = "mNPTM_DMRs/TM_HOMER")
 
 # Machine learning --------------------------------------------------------
 setwd("mNPTM_DMRs")

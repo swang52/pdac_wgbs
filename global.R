@@ -1,6 +1,6 @@
 # Description -------------
-    # Processes cytosine reports, calculates smoothened individual methylation values, and generates global methylation methylation 
-    # plots/statistics (i.e. PCA, global density plots, average CpG methylation statistics) for PDOs and murine organoids
+# Processes cytosine reports, calculates smoothened individual methylation values, and generates global methylation methylation 
+# plots/statistics (i.e. PCA, global density plots, average CpG methylation statistics) for PDOs and murine organoids
 
 # Get Packages --------------------------------------------------------------
 # Package names
@@ -23,7 +23,6 @@ coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
 perGroup <- as.double(1) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
 minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
 maxPerms <- as.integer(8) # Maximum number of permutations for the DMR analysis; no more than the # of samples
-maxBlockPerms <- as.integer(8) # Maximum number of permutations for the block analysis; no more than the # of samples
 cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
 testCovariate <- as.character("Stage") # Test covariate 
 
@@ -116,12 +115,10 @@ purrr::walk(plots,
 genome <- as.character("hg38") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMac8, rn6, danRer11, galGal6, bosTau9, panTro6, dm6, susScr11, canFam3, TAIR10, or TAIR9)
 coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
 perGroup <- as.double(.75) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
+minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
+maxPerms <- as.integer(10) # Maximum number of permutations for the DMR analysis; no more than the # of samples
+cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
 testCovariate <- as.character("Stage") # Test covariate 
-adjustCovariate <- NULL # Covariates to directly adjust 
-matchCovariate <- NULL # Covariate to balance permutations
-cores <- as.integer(4) # Number of cores (at least 3)
-sexCheck <- FALSE # Logical to confirm sex of each sample
-EnsDb <- FALSE # Logical to select Ensembl transcript annotation database rather than UCSC
 
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
@@ -203,4 +200,4 @@ purrr::walk(plots,
               title <- dplyr::case_when(plotMatrix == "windows" ~ "20Kb Windows", plotMatrix == "CpGs" ~ "Single CpG", plotMatrix == "CGi" ~ "CpG Island")
               plotMatrix %>% get() %>% plot(group = group) %>% 
                 ggplot2::ggsave(glue::glue("PDO_Global/{title} Density Plot.pdf"), plot = ., device = NULL, width = 11, height = 4)
-            })
+              })

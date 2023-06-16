@@ -25,6 +25,7 @@ minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
 maxPerms <- as.integer(8) # Maximum number of permutations for the DMR analysis; no more than the # of samples
 cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
 testCovariate <- as.character("Stage") # Test covariate 
+EnsDb <- FALSE
 
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
@@ -119,6 +120,7 @@ minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
 maxPerms <- as.integer(10) # Maximum number of permutations for the DMR analysis; no more than the # of samples
 cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
 testCovariate <- as.character("CombinedStage") # Test covariate 
+EnsDb <- FALSE
 
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),

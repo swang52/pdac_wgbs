@@ -22,14 +22,16 @@ genome <- as.character("mm9") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMac
 coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
 perGroup <- as.double(1) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
 minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
-maxPerms <- as.integer(8) # Maximum number of permutations for the DMR analysis; no more than the # of samples
+maxPerms <- as.integer(10) # Maximum number of permutations for the DMR analysis; no more than the # of samples
 cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
 testCovariate <- as.character("Stage") # Test covariate 
+adjustCovarite <- NULL
+cores <- 20
 EnsDb <- FALSE
 
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
-                              meta = openxlsx::read.xlsx("sample_info.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
+                              meta = openxlsx::read.xlsx("sample_info_mNPTM.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
                               testCovariate = testCovariate, adjustCovariate = adjustCovariate, matchCovariate = matchCovariate,
                               coverage = coverage, cores = cores, perGroup = perGroup, sexCheck = sexCheck)
 bs.filtered = chrSelectBSseq(bs.filtered, seqnames = c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11",
@@ -37,14 +39,9 @@ bs.filtered = chrSelectBSseq(bs.filtered, seqnames = c("chr1","chr2","chr3","chr
 save(bs.filtered, file = "RData/bismark_mNPTM.RData")
 #load("RData/bismark_mNPTM.RData")
 
-bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::SnowParam(workers = 1, progressbar = TRUE)) # get individual smoothened methylation values
+bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::MulticoreParam(workers = cores, progressbar = TRUE)) # get individual smoothened methylation values
 save(bs.filtered.bsseq,file = "RData/bsseq_mNPTM.RData")
 #load("RData/bsseq_mNPTM.RData")
-
-DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
-settings_env <- ls(all = TRUE)
-save(list = settings_env, file = "RData/settings_mNPTM.RData")
-#load("RData/settings_mNPTM.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%
@@ -115,29 +112,26 @@ purrr::walk(plots,
 ## Global variables ##
 genome <- as.character("hg38") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMac8, rn6, danRer11, galGal6, bosTau9, panTro6, dm6, susScr11, canFam3, TAIR10, or TAIR9)
 coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
-perGroup <- as.double(.75) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
+perGroup <- as.double(1) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
 minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
 maxPerms <- as.integer(10) # Maximum number of permutations for the DMR analysis; no more than the # of samples
 cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
-testCovariate <- as.character("CombinedStage") # Test covariate 
+testCovariate <- as.character("Stage") # Test covariate 
+adjustCovarite <- NULL
+cores <- 20
 EnsDb <- FALSE
 
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
-                              meta = openxlsx::read.xlsx("sample_info.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
+                              meta = openxlsx::read.xlsx("sample_info_PDO.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
                               testCovariate = testCovariate, adjustCovariate = adjustCovariate, matchCovariate = matchCovariate,
-                              coverage = coverage, cores = 1, perGroup = perGroup, sexCheck = sexCheck)
+                              coverage = coverage, cores = cores, perGroup = perGroup, sexCheck = sexCheck)
 save(bs.filtered, file = "RData/bismark_NPDOs.RData")
 #load("RData/bismark_NPDOs.RData")
 
-bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::SnowParam(workers = 1, progressbar = TRUE)) # get individual smoothened methylation values
+bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::MulticoreParam(workers = cores, progressbar = TRUE)) # get individual smoothened methylation values
 save(bs.filtered.bsseq,file = "RData/bsseq_NPDOs.RData")
 #load("RData/bsseq_NPDOs.RData")
-
-DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
-settings_env <- ls(all = TRUE)
-save(list = settings_env, file = "RData/settings_NPDOs.RData")
-#load("RData/settings_NPDOs.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%

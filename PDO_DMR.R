@@ -1,5 +1,5 @@
 # Description
-# DMR calling for PDOs (hN vs hT and early vs late)
+# DMR calling for PDOs (hN vs hT and early vs late) + enrichment analysis and machine learning
 
 # Get Packages if haven't already --------------------------------------------------------------
 packages <- c("ggplot2", "DMRichR", "eulerr", "RColorBrewer")
@@ -16,7 +16,7 @@ invisible(lapply(packages, library, character.only = TRUE))
 # Heatmap function --------------------
 heatmap <- function(bs.filtered.bsseq = bs.filtered.bsseq, sigRegions = sigRegions, testCovariate = testCovariate, filename = filename, colors = colors, ...) {
   bsseq::getMeth(BSseq = bs.filtered.bsseq, regions = sigRegions, type = "smooth", what = "perRegion") %>% na.omit() %>% as.matrix() %>% 
-    pheatmap::pheatmap(., scale = "row", annotation_col = bs.filtered.bsseq %>% pData() %>% as.data.frame() %>% select(., -ID, -Sex, -Treatment, -Age) %>%
+    pheatmap::pheatmap(., scale = "row", annotation_col = bs.filtered.bsseq %>% pData() %>% as.data.frame() %>%
                          dplyr::select_if(~nlevels(.) > 1), color = RColorBrewer::brewer.pal(11, name = "RdBu") %>% rev(), show_colnames = TRUE, 
                        border_color = "grey", main = glue::glue("Z-Scores of {length(sigRegions)} Differentially Methylated Regions"), 
                        fontsize = 10, filename = filename, width = 11, height = 8.5, cellwidth = 12, annotation_colors = colors %>% 
@@ -424,6 +424,34 @@ prepHOMER <- function (sigRegions = sigRegions, regions = regions, dir.name = di
 
 EL_sigRegions %>% prepHOMER(regions = EL_regions, dir.name = "PDO_DMRs/EL_HOMER")
 NT_sigRegions %>% prepHOMER(regions = NT_regions, dir.name = "PDO_DMRs/NT_HOMER")
+
+# ChromHMM and Reference Epigenomes ---------------------------------------
+if(length(grep("genomecenter.ucdavis.edu", .libPaths())) > 0 & genome == "hg38"){
+  LOLA <- function(x){
+    dir.create(names(dmrList)[x])
+    setwd(names(dmrList)[x])
+    dmrList[x] %>%
+      DMRichR::chromHMM(regions = regions,
+                        cores = floor(cores/3)) %>% 
+      DMRichR::chromHMM_heatmap()
+    if(file.exists("Rplots.pdf")){file.remove("Rplots.pdf")}
+  }
+  
+  cores = 3
+  dir.create("LOLA_NT")
+  setwd("LOLA_NT")
+  dmrList <- NT_sigRegions %>% DMRichR::dmrList()
+  regions = NT_regions
+  parallel::mclapply(seq_along(dmrList), LOLA, mc.cores = 3, mc.silent = TRUE)
+  setwd("..")
+  
+  dir.create("LOLA_EL")
+  setwd("LOLA_EL")
+  dmrList <- EL_sigRegions %>% DMRichR::dmrList()
+  regions = EL_regions
+  parallel::mclapply(seq_along(dmrList), LOLA, mc.cores = 3, mc.silent = TRUE)
+  setwd("..")
+}
 
 # Machine learning --------------------------------------------------------
 setwd("PDO_DMRs")

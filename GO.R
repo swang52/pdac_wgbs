@@ -1,3 +1,6 @@
+# Description
+# Performs gene ontology enrichment analysis for all DMR sets
+
 # load packages
 library(enrichR)
 library(enrichplot)

@@ -1,3 +1,7 @@
+# Description
+# DMR calling for mouse organoids + CpG/Genic Enrichment and machine learning for minimal DMR set
+# requires bsseq objects from global.R as input
+
 # Get Packages --------------------------------------------------------------
 # Package names
 packages <- c("ggplot2", "DMRichR", "eulerr", "RColorBrewer")

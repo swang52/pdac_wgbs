@@ -21,6 +21,18 @@ heatmap <- function (bs.filtered.bsseq = bs.filtered.bsseq, sigRegions = sigRegi
                          setNames(bs.filtered.bsseq %>% pData() %>% as.data.frame() %>% purrr::pluck(testCovariate) %>% unique() %>% 
                                     sort() %>% rev()) %>% list(testCovariate = .) %>% setNames(testCovariate), ...) %>% return()}
 
+# Set global variables ------------------
+genome <- as.character("mm9") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMac8, rn6, danRer11, galGal6, bosTau9, panTro6, dm6, susScr11, canFam3, TAIR10, or TAIR9)
+coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
+perGroup <- as.double(1) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
+minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
+maxPerms <- as.integer(10) # Maximum number of permutations for the DMR analysis; no more than the # of samples
+cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
+testCovariate <- as.character("Stage") # Test covariate 
+adjustCovarite <- NULL
+cores <- 20
+EnsDb <- FALSE
+
 # Setup annotation databases and load files ----------------------------------------------
 load("RData/bismark_mNPTM.RData") # methylation values
 load("RData/bsseq_mNPTM.RData") # smoothened methylation values
@@ -71,10 +83,10 @@ callback <- function(hc, mat){
   as.hclust(dend)
 }
 
-MPN_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseq, testCovariate = as.character("Stage"), 
+MPN_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseq, testCovariate = testCovariate, 
                            filename = "mNPTM_DMRs/MPN01_NPTM_heatmap.pdf", 
                            colors = c("#984EA3", "#4DAF4A", "#377EB8", "#E41A1C"), clustering_callback = callback)
-MPN_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseq[, which(bs.filtered.bsseq$Stage != "Tumor")], testCovariate = as.character("Stage"), 
+MPN_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseq[, which(bs.filtered.bsseq$Stage != "Tumor")], testCovariate = testCovariate, 
                            filename = "mNPTM_DMRs/MPN01_heatmap.pdf", 
                            colors = c("#4DAF4A", "#377EB8", "#E41A1C"))
 rm(bs.filteredMPN, callback)
@@ -179,8 +191,7 @@ DMRich <- function(x){
       DMRichR::DMRichCpG(regions = MPN_regions, genome = genome) %T>%
       openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/MPN_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
       DMRichR::DMRichPlot(type = "CpG") %>% 
-      ggplot2::ggsave(glue::glue("mNPTM_DMRichments/MPN_{names(dmrList)[x]}_CpG_enrichments.pdf"),
-                      plot = ., width = 4, height = 3)
+      ggplot2::ggsave(glue::glue("mNPTM_DMRichments/MPN_{names(dmrList)[x]}_CpG_enrichments.pdf"), plot = ., width = 4, height = 3)
     dmrList[x] %>% 
       DMRichR::DMRichGenic(regions = MPN_regions, TxDb = TxDb, annoDb = annoDb) %T>%
       openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/MPN_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
@@ -238,7 +249,7 @@ MPN_counts$Annotation <- factor(MPN_counts$Annotation,
                                 levels=c("Promoter", "5' UTR", "Exon", "Intron", "3' UTR", "Downstream", "Distal Intergenic")) # reorder
 write.table(MPN_counts, file = "mNPTM_DMRichments/MPN_genic_counts.txt", quote = FALSE, sep = '\t ', row.names = F) # saves the results as a text file in the working directory
 
-pdf(file = "mNPTM_DMRichments/MPN_genic_counts2.pdf")
+pdf(file = "mNPTM_DMRichments/MPN_genic_counts.pdf")
 ggplot(MPN_counts, aes(fill=Annotation, y=Percent, x=Direction)) + 
   geom_bar(position="dodge", stat = "identity", color = "black")+
   scale_y_continuous(labels = scales::percent) +
@@ -277,6 +288,7 @@ ggplot(MPN_counts, aes(fill=CpG, y=Percent, x=Direction)) +
   theme_minimal() + 
   scale_fill_manual(values = c("forestgreen", "goldenrod2", "dodgerblue", "blue3"))
 dev.off()
+rm(TM_hyper_CpG, TM_hypo_CpG, yes_hyper, yes_hypo, count_hyper, count_hypo, TM_counts)
 
 # CpG and genic enrichment testing for TM ----------------------------------------
 DMRich <- function(x){
@@ -284,8 +296,7 @@ DMRich <- function(x){
     DMRichR::DMRichCpG(regions = TM_regions, genome = genome) %T>%
     openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "CpG") %>% 
-    ggplot2::ggsave(glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_CpG_enrichments.pdf"),
-                    plot = ., width = 4, height = 3)
+    ggplot2::ggsave(glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_CpG_enrichments.pdf"), plot = ., width = 4, height = 3)
   dmrList[x] %>% 
     DMRichR::DMRichGenic(regions = TM_regions, TxDb = TxDb, annoDb = annoDb) %T>%
     openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
@@ -294,6 +305,27 @@ DMRich <- function(x){
 }
 dmrList <- TM_sigRegions %>% DMRichR::dmrList()
 parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
+
+DMparseR <- function (direction = c("All DMRs", "Hypermethylated DMRs", 
+                                    "Hypomethylated DMRs"), type = c("CpG", "genic")) {
+  stopifnot(direction %in% c("All DMRs", "Hypermethylated DMRs", 
+                             "Hypomethylated DMRs"))
+  stopifnot(type %in% c("CpG", "genic"))
+  print(glue::glue("Parsing {type} enrichment results for {tidyDirection}", 
+                   tidyDirection = glue::glue_collapse({
+                     direction
+                   }, sep = ", ", last = " and ")))
+  purrr::map(direction, function(direction) {
+    glue::glue("mNPTM_DMRichments/TM_{direction}_{type}_enrichments.xlsx")
+  }) %>% as.vector() %>% lapply(function(file) {
+    readxl::read_xlsx(file)
+  }) %>% `names<-`(direction) %>% data.table::rbindlist(idcol = "Dataset") %>% 
+    dplyr::as_tibble() %>% tidyr::separate(Dataset, c("Direction", "DMR")) %>% 
+    dplyr::select(Direction, Annotation, OR, fdr) %>% 
+    dplyr::mutate(Annotation = forcats::as_factor(Annotation)) %>% 
+    return()
+}
+
 purrr::walk(dplyr::case_when(genome %in% c("hg38", "hg19", "mm10", "mm9", "rn6") ~ c("CpG", "genic"), TRUE ~ "genic") %>% unique(),
             function(type){
               DMparseR(direction =  c("All DMRs","Hypermethylated DMRs","Hypomethylated DMRs"),type = type) %>%
@@ -302,7 +334,7 @@ purrr::walk(dplyr::case_when(genome %in% c("hg38", "hg19", "mm10", "mm9", "rn6")
                                 height = dplyr::case_when(type == "genic" ~ 5, type == "CpG" ~ 3.5), width = 7)
             })
 
-# Geneic enrichment counts
+# Genic enrichment counts
 TM_hyper_annot <- TM_hyper_sigRegions %>% 
   DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
   dplyr::select(annotation) %>% 
@@ -361,7 +393,7 @@ ggplot(TM_counts, aes(fill=CpG, y=Percent, x=Direction)) +
   theme_minimal() + 
   scale_fill_manual(values = c("forestgreen", "goldenrod2", "dodgerblue", "blue3"))
 dev.off()
-rm(TM_hyper_CpG, TM_hypo_CpG, yes_hyper, yes_hypo, count_hyper, count_hypo, TM_counts)
+rm(MPN_hyper_CpG, MPN_hypo_CpG, yes_hyper, yes_hypo, count_hyper, count_hypo, MPN_counts)
 
 # Manhattan plots -------------------------------------------------
 MPN_regions %>% 

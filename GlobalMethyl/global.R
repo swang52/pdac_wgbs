@@ -3,17 +3,25 @@
 # plots/statistics (i.e. PCA, global density plots, average CpG methylation statistics) for PDOs and murine organoids
 
 # Get Packages --------------------------------------------------------------
-# Package names
-packages <- c("ggplot2", "DMRichR", "RColorBrewer")
+cat("\n[DMRichR] Initializing \t\t\t\t\t", format(Sys.time(), "%d-%m-%Y %X"), "\n")
 
-# Install packages not yet installed
-installed_packages <- packages %in% rownames(installed.packages())
-if (any(installed_packages == FALSE)) {
-  install.packages(packages[!installed_packages])
+if(length(grep("genomecenter.ucdavis.edu", .libPaths())) > 0){
+  .libPaths("/share/hwanglab/programs/DMRichR/R_4.1")
+  AnnotationHub::setAnnotationHubOption("CACHE", "/share/hwanglab/programs/DMRichR/R_4.1")
+  ExperimentHub::setExperimentHubOption("CACHE", "/share/hwanglab/programs/DMRichR/R_4.1")
 }
 
-# Load packages
-invisible(lapply(packages, library, character.only = TRUE))
+if(!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+if(!requireNamespace("remotes", quietly = TRUE))
+  install.packages("remotes")
+if(suppressPackageStartupMessages(!requireNamespace("DMRichR", quietly = TRUE))){
+  Sys.setenv("R_REMOTES_NO_ERRORS_FROM_WARNINGS" = TRUE)
+  BiocManager::install("ben-laufer/DMRichR")
+}
+suppressPackageStartupMessages(library(DMRichR))
+suppressPackageStartupMessages(library(ggplot2))
+suppressPackageStartupMessages(library(RColorBrewer))
 
 # Make mNPTM PCA and global density plots -----------------------------------------------------------
 
@@ -28,6 +36,9 @@ testCovariate <- as.character("Stage") # Test covariate
 adjustCovarite <- NULL
 cores <- 20
 EnsDb <- FALSE
+minCpGs = 5
+maxPerms = 10
+cutoff = .1
 
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
@@ -42,6 +53,11 @@ save(bs.filtered, file = "RData/bismark_mNPTM.RData")
 bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::MulticoreParam(workers = cores, progressbar = TRUE)) # get individual smoothened methylation values
 save(bs.filtered.bsseq,file = "RData/bsseq_mNPTM.RData")
 #load("RData/bsseq_mNPTM.RData")
+
+DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
+settings_env <- ls(all = TRUE)
+save(list = settings_env, file = "RData/settings_mNPTM.RData")
+#load("RData/settings_mNPTMs.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%
@@ -112,14 +128,16 @@ purrr::walk(plots,
 ## Global variables ##
 genome <- as.character("hg38") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMac8, rn6, danRer11, galGal6, bosTau9, panTro6, dm6, susScr11, canFam3, TAIR10, or TAIR9)
 coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
-perGroup <- as.double(1) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
-minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
-maxPerms <- as.integer(10) # Maximum number of permutations for the DMR analysis; no more than the # of samples
-cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
-testCovariate <- as.character("Stage") # Test covariate 
-adjustCovarite <- NULL
-cores <- 20
-EnsDb <- FALSE
+perGroup <- as.double(.75) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
+testCovariate <- as.character("CombinedStage") # Test covariate 
+adjustCovariate <- "Sex" # Covariates to directly adjust 
+matchCovariate <- NULL # Covariate to balance permutations
+cores <- as.integer(20) # Number of cores (at least 3)
+sexCheck <- FALSE # Logical to confirm sex of each sample
+EnsDb <- FALSE # Logical to select Ensembl transcript annotation database rather than UCSC
+minCpGs = 5
+maxPerms = 10
+cutoff = .1
 
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
@@ -132,6 +150,11 @@ save(bs.filtered, file = "RData/bismark_NPDOs.RData")
 bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::MulticoreParam(workers = cores, progressbar = TRUE)) # get individual smoothened methylation values
 save(bs.filtered.bsseq,file = "RData/bsseq_NPDOs.RData")
 #load("RData/bsseq_NPDOs.RData")
+
+DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
+settings_env <- ls(all = TRUE)
+save(list = settings_env, file = "RData/settings_NPDOs.RData")
+#load("RData/settings_NPDOs.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%
@@ -156,7 +179,7 @@ ggplot(PCbeta,aes(x=PC1,y=PC2,col=group))+
   ggtitle(paste("PCA of Methylation at", ncol(beta) ,"CpG Sites",sep=" "))+ # adds title
   xlab(paste("PC 1 (", pov1, "%)", sep = ""))+ # labels PC1
   ylab(paste("PC 2 (", pov2, "%)", sep = "")) # labels PC2
-ggsave(filename = paste("mNPTM_Global/", name), plot = last_plot(), device = pdf(), width = 5.5, height = 4, path = getwd()) # saves PCA plot
+ggsave(filename = paste("PDO_Global/", name), plot = last_plot(), device = pdf(), width = 5.5, height = 4, path = getwd()) # saves PCA plot
 
 ## Make global density plots ##
 bs.filtered.bsseq %>% DMRichR::globalStats(genome = genome,

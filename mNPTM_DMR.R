@@ -204,16 +204,16 @@ dev.off()
 rm(hyper_overlap, hypo_overlap, overlap, TMonly, MPNonly, fit)
 
 # CpG and genic enrichment testing for mN/mP vs mM ----------------------------------------
-dir.create("mNPTM_DMRichments")
+dir.create("DMRichments")
 DMRich <- function(x){
     dmrList[x] %>% 
       DMRichR::DMRichCpG(regions = MPN_regions, genome = genome) %T>%
-      openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/MPN_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
+      openxlsx::write.xlsx(file = glue::glue("DMRichments/MPN_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
       DMRichR::DMRichPlot(type = "CpG") %>% 
       ggplot2::ggsave(glue::glue("DMRichments/MPN_{names(dmrList)[x]}_CpG_enrichments.pdf"), plot = ., width = 4, height = 3)
     dmrList[x] %>% 
       DMRichR::DMRichGenic(regions = MPN_regions, TxDb = TxDb, annoDb = annoDb) %T>%
-      openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/MPN_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
+      openxlsx::write.xlsx(file = glue::glue("DMRichments/MPN_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
       DMRichR::DMRichPlot(type = "genic") %>% 
       ggplot2::ggsave(glue::glue("DMRichments/MPN_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
 }
@@ -227,14 +227,14 @@ cpgCount(sigRegions = MPN_sigRegions, project = "MPN")
 DMRich <- function(x){
   dmrList[x] %>% 
     DMRichR::DMRichCpG(regions = TM_regions, genome = genome) %T>%
-    openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/TM_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "CpG") %>% 
-    ggplot2::ggsave(glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_CpG_enrichments.pdf"), plot = ., width = 4, height = 3)
+    ggplot2::ggsave(glue::glue("DMRichments/TM_{names(dmrList)[x]}_CpG_enrichments.pdf"), plot = ., width = 4, height = 3)
   dmrList[x] %>% 
     DMRichR::DMRichGenic(regions = TM_regions, TxDb = TxDb, annoDb = annoDb) %T>%
-    openxlsx::write.xlsx(file = glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/TM_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "genic") %>% 
-    ggplot2::ggsave(glue::glue("mNPTM_DMRichments/TM_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
+    ggplot2::ggsave(glue::glue("DMRichments/TM_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
 }
 dmrList <- TM_sigRegions %>% DMRichR::dmrList()
 parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)

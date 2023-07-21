@@ -239,7 +239,6 @@ DMRich <- function(x){
 dmrList <- TM_sigRegions %>% DMRichR::dmrList()
 parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
 
-# Genic enrichment counts
 genicCount(sigRegions = TM_sigRegions, project = "TM")
 cpgCount(sigRegions = TM_sigRegions, project = "TM")
 

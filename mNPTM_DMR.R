@@ -198,7 +198,7 @@ MPN_regions %>%
                  LOG10 = TRUE, ylim = NULL, threshold = 0.01, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
                  bin.size = 1e+06, file = "pdf", memo = "")
-file.rename("Rect_Manhtn.q.value.pdf", "mNPTM_DMRs/MPN_manhattan.pdf")
+file.rename("Rectangular-Manhattan.q.value.pdf", "mNPTM_DMRs/MPN_manhattan.pdf")
 
 TM_regions %>% 
   DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
@@ -209,7 +209,7 @@ TM_regions %>%
                  LOG10 = TRUE, ylim = NULL, threshold = 0.01, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
                  bin.size = 1e+06, file = "pdf", memo = "")
-file.rename("Rect_Manhtn.q.value.pdf", "mNPTM_DMRs/TM_manhattan.pdf")
+file.rename("Rectangular-Manhattan.q.value.pdf", "mNPTM_DMRs/TM_manhattan.pdf")
 
 # Prepare HOMER -------------------------------------------------------------------
 prepHOMER <- function (sigRegions = sigRegions, regions = regions, dir.name = dir.name) 

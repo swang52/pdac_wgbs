@@ -61,7 +61,7 @@ if(sum(MPN_regions$qval < 0.01) >= 100){
   stop(glue::glue("No significant DMRs detected in {length(MPN_regions)} background regions"))
 }
 dir.create("mNPTM_DMRs")
-gr2bed(MPN_sigRegions, "mNPTM_DMRs/MPN01_DMRs.bed")
+gr2bed(MPN_sigRegions, "mNPTM_DMRs/MPN_DMRs.bed")
 gr2bed(MPN_regions, "mNPTM_DMRs/MPN_backgroundRegions.bed")
 save(MPN_regions, MPN_sigRegions, file = "RData/MPN_DMRs.RData")
 #load("RData/MPN_DMRs.RData")
@@ -88,10 +88,10 @@ callback <- function(hc, mat){
 }
 
 MPN_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseq, testCovariate = testCovariate, 
-                           filename = "mNPTM_DMRs/MPN01_NPTM_heatmap.pdf", 
+                           filename = "mNPTM_DMRs/MPN_NPTM_heatmap.pdf", 
                            colors = c("#984EA3", "#4DAF4A", "#377EB8", "#E41A1C"), clustering_callback = callback)
 MPN_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseq[, which(bs.filtered.bsseq$Stage != "Tumor")], testCovariate = testCovariate, 
-                           filename = "mNPTM_DMRs/MPN01_heatmap.pdf", 
+                           filename = "mNPTM_DMRs/MPN_heatmap.pdf", 
                            colors = c("#4DAF4A", "#377EB8", "#E41A1C"))
 rm(bs.filteredMPN, callback)
 
@@ -182,7 +182,7 @@ TMonly <- length(TM_sigRegions) - overlap
 MPNonly <- length(MPN_sigRegions) - overlap
 fit = euler(c("mT vs mM" = TMonly, "mN/mP vs mM" = MPNonly, 
               "mT vs mM&mN/mP vs mM" = overlap))
-pdf(file = "mNPTM_DMRs/euler01.pdf")
+pdf(file = "mNPTM_DMRs/euler.pdf")
 plot(fit, quantities = TRUE, legend = list(lables = c("mT vs mM", "mN/mP vs mM")),
      fills = list(fill = c("#66D2D6", "#E56997"), alpha = 0.8))
 dev.off()

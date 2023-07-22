@@ -36,7 +36,8 @@ genicCount <- function(sigRegions = sigRegions, project = c("TM", "MPN", "EL", "
     dplyr::select(annotation) %>% table() %>% as.data.frame() %>% 
     dplyr::mutate(Percent = Freq/sum(Freq)) %>%
     stats::setNames(c("Annotation","Frequency","Percentage"))
-  data.frame(Annotation = rep(levels(hyper$Annotation),2),
+  data.frame(Annotation = rep(c("3UTR", "5UTR", "Distal Intergenic", "Downstream",
+                                "Exon", "Intron", "Promoter"),2),
              Count = c(hyper$Freq, hypo$Freq),
              Percent = round(c(hyper$Percent, hypo$Percent),2),
              Direction = rep(c("Hypermethylated", "Hypomethylated"), each = 7)) %>%

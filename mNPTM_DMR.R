@@ -36,11 +36,12 @@ genicCount <- function(sigRegions = sigRegions, project = c("TM", "MPN", "EL", "
     dplyr::select(annotation) %>% table() %>% as.data.frame() %>% 
     dplyr::mutate(Percent = Freq/sum(Freq)) %>%
     stats::setNames(c("Annotation","Frequency","Percentage"))
-  data.frame(Annotation = rep(c("3UTR", "5UTR", "Distal Intergenic", "Downstream",
-                                "Exon", "Intron", "Promoter"),2),
+  data.frame(Annotation = c(hyper$Annotation, hypo$Annotation),
              Count = c(hyper$Freq, hypo$Freq),
              Percent = round(c(hyper$Percent, hypo$Percent),2),
-             Direction = rep(c("Hypermethylated", "Hypomethylated"), each = 7)) %>%
+             Direction = c(rep("Hypermethylated", nrow(hyper)), rep("Hypomethylated", nrow(hypo)))) %>% 
+    dplyr::mutate(Annotation = stringr::str_replace(Annotation, "3' UTR", "3UTR")) %>%
+    dplyr::mutate(Annotation = stringr::str_replace(Annotation, "5' UTR", "5UTR")) %>%
     write.table(., file = glue::glue("DMRichments/{project}_genic_counts.txt"), quote = FALSE, sep = '\t ', row.names = F)
 }
 
@@ -191,8 +192,8 @@ TM_hyper_sigRegions <- TM_sigRegions %>% plyranges::filter(stat > 0)
 MPN_hyper_sigRegions <- MPN_sigRegions %>% plyranges::filter(stat > 0)
 TM_hypo_sigRegions <- TM_sigRegions %>% plyranges::filter(stat < 0)
 MPN_hypo_sigRegions <- MPN_sigRegions %>% plyranges::filter(stat < 0)
-hyper_overlap <- intersect(MPN_hyper_sigRegions, TM_hyper_sigRegions, ignore.strand = T)
-hypo_overlap <- intersect(MPN_hypo_sigRegions, TM_hypo_sigRegions, ignore.strand = T)
+hyper_overlap <- GenomicRanges::intersect(MPN_hyper_sigRegions, TM_hyper_sigRegions, ignore.strand = T)
+hypo_overlap <- GenomicRanges::intersect(MPN_hypo_sigRegions, TM_hypo_sigRegions, ignore.strand = T)
 overlap <- length(hyper_overlap) + length(hypo_overlap)
 TMonly <- length(TM_sigRegions) - overlap
 MPNonly <- length(MPN_sigRegions) - overlap

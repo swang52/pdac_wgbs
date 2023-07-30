@@ -4,7 +4,7 @@
 
 # Get Packages --------------------------------------------------------------
 # Package names
-packages <- c("DMRichR", "cowplot")
+packages <- c("DMRichR", "cowplot", "ggplot2")
 
 # Install packages not yet installed
 installed_packages <- packages %in% rownames(installed.packages())
@@ -112,6 +112,7 @@ genicCpG <- egg::ggarrange(MPN_CpG, TM_CpG + theme2,
                MPN_genic, TM_genic + theme2, 
                NT_genic + theme2, EL_genic + theme2,
                nrow = 2, heights = c(1,2))
+save(genicCpG, file = "RData/genicCpG_fig.RData")
 ggplot2::ggsave(genicCpG, width = 8, height = 5, filename = "DMRichments/genic_CpG_multi_plot.pdf")
 
 rm(MPN_CpG, TM_CpG, NT_CpG, EL_CpG, 

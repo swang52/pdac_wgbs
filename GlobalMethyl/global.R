@@ -130,7 +130,7 @@ genome <- as.character("hg38") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMa
 coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
 perGroup <- as.double(.75) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
 testCovariate <- as.character("CombinedStage") # Test covariate 
-adjustCovariate <- "Sex" # Covariates to directly adjust 
+adjustCovariate <- NULL # Covariates to directly adjust 
 matchCovariate <- NULL # Covariate to balance permutations
 cores <- as.integer(20) # Number of cores (at least 3)
 sexCheck <- FALSE # Logical to confirm sex of each sample
@@ -144,6 +144,9 @@ bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.tx
                               meta = openxlsx::read.xlsx("sample_info_PDO.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
                               testCovariate = testCovariate, adjustCovariate = adjustCovariate, matchCovariate = matchCovariate,
                               coverage = coverage, cores = cores, perGroup = perGroup, sexCheck = sexCheck)
+bs.filtered = chrSelectBSseq(bs.filtered, seqnames = c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11",
+                                                       "chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20",
+                                                       "chr21","chr22"), order = TRUE) # removes sex chromosomes
 save(bs.filtered, file = "RData/bismark_NPDOs.RData")
 #load("RData/bismark_NPDOs.RData")
 

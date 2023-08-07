@@ -19,33 +19,54 @@ heatmap <- function(bs.filtered.bsseq = bs.filtered.bsseq, sigRegions = sigRegio
     pheatmap::pheatmap(., scale = "row", annotation_col = bs.filtered.bsseq %>% pData() %>% as.data.frame() %>%
                          dplyr::select_if(~nlevels(.) > 1), color = RColorBrewer::brewer.pal(11, name = "RdBu") %>% rev(), show_colnames = TRUE, 
                        border_color = "grey", main = glue::glue("Z-Scores of {length(sigRegions)} Differentially Methylated Regions"), 
-                       fontsize = 10, filename = filename, width = 11, height = 8.5, cellwidth = 12, annotation_colors = colors %>% 
-                         setNames(bs.filtered.bsseq %>% pData() %>% as.data.frame() %>% purrr::pluck(testCovariate) %>% unique() %>% 
-                                    sort() %>% rev()) %>% list(testCovariate = .) %>% setNames(testCovariate), ...) %>% return()}
+                       fontsize = 10, filename = filename, width = 11, height = 8.5, cellwidth = 12, annotation_colors = colors, ...) %>% return()}
 
-# Set global variables ------------------
-genome <- as.character("hg38") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMac8, rn6, danRer11, galGal6, bosTau9, panTro6, dm6, susScr11, canFam3, TAIR10, or TAIR9)
-coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
-perGroup <- as.double(.75) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
-minCpGs <- as.integer(5) # Minimum number of CpGs for a DMR
-maxPerms <- as.integer(10) # Maximum number of permutations for the DMR analysis; no more than the # of samples
-cutoff <- as.double(0.1) # Cutoff value [from 0 to 1] for the single CpG coefficient utilized to discover testable background regions
-testCovariate <- as.character("CombinedStage") # Test covariate 
-adjustCovarite <- NULL
-cores <- 20
-EnsDb <- FALSE
+genicCount <- function(sigRegions = sigRegions, project = c("TM", "MPN", "EL", "NT", "sub"), ...){
+  hyper <- sigRegions %>% plyranges::filter(stat > 0) %>% 
+    DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
+    dplyr::select(annotation) %>% table() %>% as.data.frame() %>%
+    dplyr::mutate(Percent = Freq/sum(Freq)) %>%
+    stats::setNames(c("Annotation","Frequency","Percentage"))
+  hypo <- sigRegions %>% plyranges::filter(stat < 0) %>% 
+    DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
+    dplyr::select(annotation) %>% table() %>% as.data.frame() %>% 
+    dplyr::mutate(Percent = Freq/sum(Freq)) %>%
+    stats::setNames(c("Annotation","Frequency","Percentage"))
+  data.frame(Annotation = c(hyper$Annotation, hypo$Annotation),
+             Count = c(hyper$Freq, hypo$Freq),
+             Percent = round(c(hyper$Percent, hypo$Percent),2),
+             Direction = c(rep("Hypermethylated", nrow(hyper)), rep("Hypomethylated", nrow(hypo)))) %>% 
+    dplyr::mutate(Annotation = stringr::str_replace(Annotation, "3' UTR", "3UTR")) %>%
+    dplyr::mutate(Annotation = stringr::str_replace(Annotation, "5' UTR", "5UTR")) %>%
+    write.table(., file = glue::glue("DMRichments/{project}_genic_counts.txt"), quote = FALSE, sep = '\t ', row.names = F)
+}
+
+cpgCount <- function(sigRegions = sigRegions, project = c("TM", "MPN", "EL", "NT", "sub"), ...){
+  hyper <- sigRegions %>% plyranges::filter(stat > 0) %>% 
+    DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
+    dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() %>%
+    sapply(., FUN = function(x){length(x[x=="Yes"])}) %>%
+    data.frame(Count = ., Percent = ./length(sigRegions%>% plyranges::filter(stat > 0)))
+  hypo <- sigRegions %>% plyranges::filter(stat < 0) %>% 
+    DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
+    dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() %>%
+    sapply(., FUN = function(x){length(x[x=="Yes"])}) %>%
+    data.frame(Count = ., Percent = ./length(sigRegions%>% plyranges::filter(stat < 0)))
+  data.frame(CpG = rep(rownames(hyper),2),
+             Count = c(hyper$Count, hypo$Count),
+             Percent = round(c(hyper$Percent, hypo$Percent),2),
+             Direction = rep(c("Hypermethylated", "Hypomethylated"), each = 4)) %>%
+    write.table(., file = glue::glue("DMRichments/{project}_CpG_counts.txt"), quote = FALSE, sep = '\t ', row.names = F)
+}
 
 # Setup annotation databases and load files ----------------------------------------------
 load("RData/bismark_NPDOs.RData") # methylation values
 load("RData/bsseq_NPDOs.RData") # smoothened methylation values
+load("RData/settings_NPDOs.RData")
 
 DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb)
 
-# Normal vs Tumor DMRs (p < .01) ---------------------
-# Modify bs.filtered
-bs.filtered$CombinedStage = bs.filtered$Stage %>% as.data.frame() %>% 
-  with(., ifelse(. == "Normal", "Normal", "Tumor")) %>% as.factor()
-
+# Normal vs Tumor DMRs ---------------------
 NT_regions <- dmrseq::dmrseq(bs = bs.filtered, cutoff = cutoff, minNumRegion = minCpGs, maxPerms = maxPerms, testCovariate = testCovariate)
 NT_regions <- NT_regions %>% 
   plyranges::mutate(direction = dplyr::case_when(stat > 0 ~ "Hypermethylated",
@@ -55,9 +76,9 @@ NT_regions <- NT_regions %>%
 if(sum(NT_regions$qval < 0.05) < 100 & sum(NT_regions$pval < 0.01) != 0){
   NT_sigRegions <- NT_regions %>%
     plyranges::filter(pval < 0.01)
-}else if(sum(NT_regions$qval < 0.05) >= 100){
+}else if(sum(NT_regions$qval < 0.01) >= 100){
   NT_sigRegions <- NT_regions %>%
-    plyranges::filter(qval < 0.05)
+    plyranges::filter(qval < 0.01)
 }else if(sum(NT_regions$pval < 0.05) == 0){
   stop(glue::glue("No significant DMRs detected in {length(regions)} background regions"))
 }
@@ -177,217 +198,45 @@ dev.off()
 rm(hyper_overlap, hypo_overlap, overlap, ELonly, NTonly, fit)
 
 # CpG and genic enrichment testing for Early vs Late ----------------------------------------
-dir.create("PDO_DMRichments")
+dir.create("DMRichments")
 DMRich <- function(x){
   dmrList[x] %>% 
     DMRichR::DMRichCpG(regions = EL_regions, genome = genome) %T>%
-    openxlsx::write.xlsx(file = glue::glue("PDO_DMRichments/EL_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/EL_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "CpG") %>% 
-    ggplot2::ggsave(glue::glue("PDO_DMRichments/EL_{names(dmrList)[x]}_CpG_enrichments.pdf"),
+    ggplot2::ggsave(glue::glue("DMRichments/EL_{names(dmrList)[x]}_CpG_enrichments.pdf"),
                     plot = ., width = 4, height = 3)
   dmrList[x] %>% 
     DMRichR::DMRichGenic(regions = EL_regions, TxDb = TxDb, annoDb = annoDb) %T>%
-    openxlsx::write.xlsx(file = glue::glue("PDO_DMRichments/EL_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/EL_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "genic") %>% 
-    ggplot2::ggsave(glue::glue("PDO_DMRichments/EL_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
+    ggplot2::ggsave(glue::glue("DMRichments/EL_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
 }
 dmrList <- EL_sigRegions %>% DMRichR::dmrList()
 parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
 
-DMparseR <- function (direction = c("All DMRs", "Hypermethylated DMRs", 
-                                    "Hypomethylated DMRs"), type = c("CpG", "genic")) {
-  stopifnot(direction %in% c("All DMRs", "Hypermethylated DMRs", 
-                             "Hypomethylated DMRs"))
-  stopifnot(type %in% c("CpG", "genic"))
-  print(glue::glue("Parsing {type} enrichment results for {tidyDirection}", 
-                   tidyDirection = glue::glue_collapse({
-                     direction
-                   }, sep = ", ", last = " and ")))
-  purrr::map(direction, function(direction) {
-    glue::glue("PDO_DMRichments/EL_{direction}_{type}_enrichments.xlsx")
-  }) %>% as.vector() %>% lapply(function(file) {
-    readxl::read_xlsx(file)
-  }) %>% `names<-`(direction) %>% data.table::rbindlist(idcol = "Dataset") %>% 
-    dplyr::as_tibble() %>% tidyr::separate(Dataset, c("Direction", "DMR")) %>% 
-    dplyr::select(Direction, Annotation, OR, fdr) %>% 
-    dplyr::mutate(Annotation = forcats::as_factor(Annotation)) %>% 
-    return()
-}
-
-purrr::walk(dplyr::case_when(genome %in% c("hg38", "hg19", "mm10", "mm9", "rn6") ~ c("CpG", "genic"), TRUE ~ "genic") %>% unique(),
-            function(type){
-              DMparseR(direction =  c("All DMRs","Hypermethylated DMRs","Hypomethylated DMRs"),type = type) %>%
-                DMRichR::DMRichPlot(type = type,multi = TRUE) %>% 
-                ggplot2::ggsave(glue::glue("PDO_DMRichments/EL_{type}_multi_plot.pdf"), plot = ., device = NULL,
-                                height = dplyr::case_when(type == "genic" ~ 5, type == "CpG" ~ 3.5), width = 7)
-            })
-
-# Genic enrichment counts
-EL_hyper_annot <- EL_hyper_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(annotation) %>% 
-  table() %>% as.data.frame() # hypermethylated frequency table
-EL_hyper_annot$Percent <- EL_hyper_annot[[2]]/sum(EL_hyper_annot[[2]]) # add percent
-
-EL_hypo_annot <- EL_hypo_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(annotation) %>% table() %>% as.data.frame() # hypomethylated frquency table# Percent graphs
-EL_hypo_annot$Percent <- EL_hypo_annot[[2]]/sum(EL_hypo_annot[[2]]) # add percent
-
-EL_counts <- data.frame(Annotation = c(levels(EL_hyper_annot[[1]]), levels(EL_hypo_annot[[1]])),
-                         Count = c(EL_hyper_annot[[2]], EL_hypo_annot[[2]]),
-                         Percent = round(c(EL_hyper_annot[[3]], EL_hypo_annot[[3]]),2),
-                         Direction = c(rep("Hypermethylated",length(EL_hyper_annot[[1]])), 
-                                       rep("Hypomethylated", length(EL_hypo_annot[[1]])))) # initialize dataframe
-EL_counts$Annotation <- factor(EL_counts$Annotation, 
-                                levels=c("Promoter", "5' UTR", "Exon", "Intron", "3' UTR", "Downstream", "Distal Intergenic")) # reorder
-write.table(EL_counts, file = "PDO_DMRichments/EL_genic_counts.txt", quote = FALSE, sep = '\t ', row.names = F) # saves the results as a text file in the working directory
-
-pdf(file = "PDO_DMRichments/EL_genic_counts.pdf")
-ggplot(EL_counts, aes(fill=Annotation, y=Percent, x=Direction)) + 
-  geom_bar(position="dodge", stat = "identity", color = "black")+
-  scale_y_continuous(labels = scales::percent) +
-  labs(x ="", y = "") + ggtitle("Early vs Late") +
-  scale_x_discrete(labels=c("Hypermethylated", "Hypomethylated")) +
-  theme_minimal() + 
-  scale_fill_manual(values=wesanderson::wes_palette("Zissou1", n = 7, type = "continuous") %>% rev())
-dev.off()
-rm(EL_hyper_annot, EL_hypo_annot, EL_counts)
-
-# CpG enrichment counts
-EL_hyper_CpG <- EL_hyper_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() # hypermethylated CpGs
-yes_hyper <- sapply(EL_hyper_CpG,FUN = function(x){length(x[x=="Yes"])})
-count_hyper <- data.frame(Count = yes_hyper, Percent = yes_hyper/length(EL_hyper_sigRegions))
-
-EL_hypo_CpG <- EL_hypo_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() # hypomethylated CpGs
-yes_hypo <- sapply(EL_hypo_CpG,FUN = function(x){length(x[x=="Yes"])})
-count_hypo <- data.frame(Count = yes_hypo, Percent = yes_hypo/length(EL_hypo_sigRegions))
-
-EL_counts <- data.frame(CpG = rep(rownames(count_hyper),2),
-                         Count = c(count_hyper[[1]], count_hypo[[1]]),
-                         Percent = round(c(count_hyper[[2]], count_hypo[[2]]),2),
-                         Direction = rep(c("Hypermethylated", "Hypomethylated"), each=4)) # initialize dataframe
-write.table(EL_counts, file = "PDO_DMRichments/EL_CpG_counts.txt", quote = FALSE, sep = '\t ', row.names = F) # saves the results as a text file in the working directory
-
-pdf(file = "PDO_DMRichments/EL_CpG_counts.pdf")
-ggplot(EL_counts, aes(fill=CpG, y=Percent, x=Direction)) + 
-  geom_bar(position="dodge", stat = "identity", color = "black")+
-  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
-  labs(x ="", y = "") + ggtitle("Early vs Late") +
-  scale_x_discrete(labels=c("Hypermethylated", "Hypomethylated")) +
-  theme_minimal() + 
-  scale_fill_manual(values = c("forestgreen", "goldenrod2", "dodgerblue", "blue3"))
-dev.off()
+genicCount(sigRegions = EL_sigRegions, project = "EL")
+cpgCount(sigRegions = EL_sigRegions, project = "EL")
 
 # CpG and genic enrichment testing for hN vs hT ----------------------------------------
 DMRich <- function(x){
   dmrList[x] %>% 
     DMRichR::DMRichCpG(regions = NT_regions, genome = genome) %T>%
-    openxlsx::write.xlsx(file = glue::glue("PDO_DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "CpG") %>% 
-    ggplot2::ggsave(glue::glue("PDO_DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.pdf"),
+    ggplot2::ggsave(glue::glue("DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.pdf"),
                     plot = ., width = 4, height = 3)
   dmrList[x] %>% 
     DMRichR::DMRichGenic(regions = NT_regions, TxDb = TxDb, annoDb = annoDb) %T>%
-    openxlsx::write.xlsx(file = glue::glue("PDO_DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "genic") %>% 
-    ggplot2::ggsave(glue::glue("PDO_DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
+    ggplot2::ggsave(glue::glue("DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
 }
 dmrList <- NT_sigRegions %>% DMRichR::dmrList()
 parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
 
-DMparseR <- function (direction = c("All DMRs", "Hypermethylated DMRs", 
-                                    "Hypomethylated DMRs"), type = c("CpG", "genic")) {
-  stopifnot(direction %in% c("All DMRs", "Hypermethylated DMRs", 
-                             "Hypomethylated DMRs"))
-  stopifnot(type %in% c("CpG", "genic"))
-  print(glue::glue("Parsing {type} enrichment results for {tidyDirection}", 
-                   tidyDirection = glue::glue_collapse({
-                     direction
-                   }, sep = ", ", last = " and ")))
-  purrr::map(direction, function(direction) {
-    glue::glue("PDO_DMRichments/NT_{direction}_{type}_enrichments.xlsx")
-  }) %>% as.vector() %>% lapply(function(file) {
-    readxl::read_xlsx(file)
-  }) %>% `names<-`(direction) %>% data.table::rbindlist(idcol = "Dataset") %>% 
-    dplyr::as_tibble() %>% tidyr::separate(Dataset, c("Direction", "DMR")) %>% 
-    dplyr::select(Direction, Annotation, OR, fdr) %>% 
-    dplyr::mutate(Annotation = forcats::as_factor(Annotation)) %>% 
-    return()
-}
-
-purrr::walk(dplyr::case_when(genome %in% c("hg38", "hg19", "mm10", "mm9", "rn6") ~ c("CpG", "genic"), TRUE ~ "genic") %>% unique(),
-            function(type){
-              DMparseR(direction =  c("All DMRs","Hypermethylated DMRs","Hypomethylated DMRs"),type = type) %>%
-                DMRichR::DMRichPlot(type = type,multi = TRUE) %>% 
-                ggplot2::ggsave(glue::glue("PDO_DMRichments/NT_{type}_multi_plot.pdf"), plot = ., device = NULL,
-                                height = dplyr::case_when(type == "genic" ~ 5, type == "CpG" ~ 3.5), width = 7)
-            })
-
-# Genic enrichment counts
-NT_hyper_annot <- NT_hyper_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(annotation) %>% 
-  table() %>% as.data.frame() # hypermethylated frequency table
-NT_hyper_annot$Percent <- NT_hyper_annot[[2]]/sum(NT_hyper_annot[[2]]) # add percent
-
-NT_hypo_annot <- NT_hypo_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(annotation) %>% table() %>% as.data.frame() # hypomethylated frquency table# Percent graphs
-NT_hypo_annot$Percent <- NT_hypo_annot[[2]]/sum(NT_hypo_annot[[2]]) # add percent
-
-NT_counts <- data.frame(Annotation = rep(levels(NT_hyper_annot[[1]]), 2),
-                        Count = c(NT_hyper_annot[[2]], NT_hypo_annot[[2]]),
-                        Percent = round(c(NT_hyper_annot[[3]], NT_hypo_annot[[3]]),2),
-                        Direction = rep(c("Hypermethylated", "Hypomethylated"), each=7)) # initialize dataframe
-NT_counts$Annotation <- factor(NT_counts$Annotation, 
-                               levels=c("Promoter", "5' UTR", "Exon", "Intron", "3' UTR", "Downstream", "Distal Intergenic")) # reorder
-write.table(NT_counts, file = "PDO_DMRichments/NT_genic_counts.txt", quote = FALSE, sep = '\t ', row.names = F) # saves the results as a text file in the working directory
-
-pdf(file = "PDO_DMRichments/NT_genic_counts.pdf")
-ggplot(NT_counts, aes(fill=Annotation, y=Percent, x=Direction)) + 
-  geom_bar(position="dodge", stat = "identity", color = "black")+
-  scale_y_continuous(labels = scales::percent, limits = c(0,.5)) +
-  labs(x ="", y = "") + ggtitle("hN vs hT") +
-  scale_x_discrete(labels=c("Hypermethylated", "Hypomethylated")) +
-  theme_minimal() + 
-  scale_fill_manual(values=wesanderson::wes_palette("Zissou1", n = 7, type = "continuous") %>% rev())
-dev.off()
-rm(NT_hyper_annot, NT_hypo_annot, NT_counts)
-
-# CpG enrichment counts
-NT_hyper_CpG <- NT_hyper_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() # hypermethylated CpGs
-yes_hyper <- sapply(NT_hyper_CpG,FUN = function(x){length(x[x=="Yes"])})
-count_hyper <- data.frame(Count = yes_hyper, Percent = yes_hyper/length(NT_hyper_sigRegions))
-
-NT_hypo_CpG <- NT_hypo_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() # hypomethylated CpGs
-yes_hypo <- sapply(NT_hypo_CpG,FUN = function(x){length(x[x=="Yes"])})
-count_hypo <- data.frame(Count = yes_hypo, Percent = yes_hypo/length(NT_hypo_sigRegions))
-
-NT_counts <- data.frame(CpG = rep(rownames(count_hyper),2),
-                        Count = c(count_hyper[[1]], count_hypo[[1]]),
-                        Percent = round(c(count_hyper[[2]], count_hypo[[2]]),2),
-                        Direction = rep(c("Hypermethylated", "Hypomethylated"), each=4)) # initialize dataframe
-write.table(NT_counts, file = "PDO_DMRichments/NT_CpG_counts.txt", quote = FALSE, sep = '\t ', row.names = F) # saves the results as a text file in the working directory
-
-pdf(file = "PDO_DMRichments/NT_CpG_counts.pdf")
-ggplot(NT_counts, aes(fill=CpG, y=Percent, x=Direction)) + 
-  geom_bar(position="dodge", stat = "identity", color = "black")+
-  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
-  labs(x ="", y = "") + ggtitle("hN vs hT") +
-  scale_x_discrete(labels=c("Hypermethylated", "Hypomethylated")) +
-  theme_minimal() + 
-  scale_fill_manual(values = c("forestgreen", "goldenrod2", "dodgerblue", "blue3"))
-dev.off()
-rm(NT_hyper_CpG, NT_hypo_CpG, yes_hyper, yes_hypo, count_hyper, count_hypo, NT_counts)
+genicCount(sigRegions = NT_sigRegions, project = "NT")
+cpgCount(sigRegions = NT_sigRegions, project = "NT")
 
 # Manhattan plots -------------------------------------------------
 EL_regions %>% 

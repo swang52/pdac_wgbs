@@ -71,6 +71,20 @@ EL %>% openxlsx::write.xlsx(file = "PDO_Ontologies/EL_enrichr.xlsx")
 
 sub <- GO(sigRegions = sub_sigRegions, dbs = dbs, TxDb = TxDb, annoDb = annoDb)
 sub %>% openxlsx::write.xlsx(file = "PDO_Ontologies/sub_enrichr.xlsx")
+
+# GO dot plot for PDOs ------
+top <- 8
+pNT <- GOplot(data = NT, dbs = dbs, top = top) +
+  scale_size(breaks = c(25, 50, 75), range = c(.5, 2.5)) 
+ggsave(pNT, width = 5, height = 5, file = "PDO_Ontologies/NT.pdf")
+
+pEL <- GOplot(data = EL, dbs = dbs, top = top) +
+  scale_size(breaks = c(10, 20, 30), range = c(.5, 2.5)) 
+ggsave(pEL, width = 5, height = 5, file = "PDO_Ontologies/EL.pdf")
+
+pSub <- GOplot(data = sub, dbs = dbs, top = top)
+ggsave(pSub, width = 5, height = 5, file = "PDO_Ontologies/sub.pdf")
+
 # Mouse Ontologies ------------------------------------
 dir.create("mNPTM_Ontologies")
 DMRichR::annotationDatabases(genome = "mm9", EnsDb = TRUE)
@@ -88,24 +102,14 @@ MPN %>% openxlsx::write.xlsx(file = "mNPTM_Ontologies/MPN_enrichr.xlsx")
 top <- 8
 pMPN <- GOplot(data = MPN, dbs = dbs, top = top) +
   scale_size(breaks = c(50, 100, 150), range = c(.5, 2.5)) +
-  scale_y_continuous(breaks = seq(0, 20, by = 5))
+  scale_y_continuous(breaks = seq(0, 25, by = 5), limits = c(0,23)) +
+  scale_color_gradient(low = "blue", high = "red", limits = c(3,21))
 ggsave(pMPN, width = 5, height = 5, file = "mNPTM_Ontologies/MPN.pdf")
 
 pTM <- GOplot(data = TM, dbs = dbs, top = top) +
   scale_size(breaks = c(50, 100, 150), range = c(.5, 2.5)) +
-  scale_y_continuous(breaks = seq(0, 20, by = 5))
+  scale_y_continuous(breaks = seq(0, 25, by = 5), limits = c(0,23)) +
+  scale_color_gradient(low = "blue", high = "red", limits = c(3,21))
 ggsave(pTM, width = 5, height = 5, file = "mNPTM_Ontologies/TM.pdf")
 
 ggsave(plot_grid(pMPN, pTM, ncol=1, align="v"), width = 5, height = 7.5, file = "mNPTM_Ontologies/NPTM.pdf")
-
-# GO dot plot for PDOs ------
-top <- 8
-pNT <- GOplot(data = NT, dbs = dbs, top = top)
-ggsave(pNT, width = 5, height = 5, file = "PDO_Ontologies/NT.pdf")
-
-pEL <- GOplot(data = EL, dbs = dbs, top = top)
-ggsave(pEL, width = 5, height = 5, file = "PDO_Ontologies/EL.pdf")
-
-pSub <- GOplot(data = sub, dbs = dbs, top = top) +
-scale_size(breaks = c(15, 30, 45), range = c(.5, 2.5))
-ggsave(pSub, width = 5, height = 5, file = "PDO_Ontologies/sub.pdf")

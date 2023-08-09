@@ -68,7 +68,7 @@ colnames(q) <- states
 stage_fold <- fold[1:8,]
 stage_q <- q[1:8,]
 pdf(file = "stage_chromHMM.pdf", width = 11, height = 8)
-stage_heat <- Heatmap(stage_fold, cell_fun = function(j, i, x, y, width, height, fill) {
+Heatmap(stage_fold, cell_fun = function(j, i, x, y, width, height, fill) {
   if(stage_q[i, j] < 0.001) {
     grid.text("***", x, y)
   } else if(stage_q[i, j] < 0.01) {
@@ -77,11 +77,11 @@ stage_heat <- Heatmap(stage_fold, cell_fun = function(j, i, x, y, width, height,
     grid.text("*", x, y)
   }
 }, row_order = c(1:8), column_order = c(1:15),
-row_split = rep(c("A","B","C","D"), each = 2),
-col=colorRamp2(c(-5, 0, 15), c("blue", "white", "red")),
-rect_gp = gpar(col = "black", lwd = .5),
-width = ncol(stage_fold)*unit(10, "mm"), height = nrow(stage_fold)*unit(10, "mm"),
-name = "Fold Enrichment")
+  width = ncol(stage_fold)*unit(10, "mm"), height = nrow(stage_fold)*unit(10, "mm"),
+  rect_gp = gpar(col = "black", lwd = .5),
+  col=colorRamp2(c(-5, 0, 15), c("blue", "white", "red")),
+  name = "Fold Enrichment",
+  row_split = rep(c("A","B","C","D"), each = 2))
 dev.off()
 
 # Subtype heatmap ------------

@@ -200,6 +200,7 @@ plot(fit, quantities = TRUE, legend = list(lables = c("Early vs Late", "hN vs hT
 dev.off()
 
 # CpG and genic enrichment testing for hN vs hT ----------------------------------------
+dir.create("DMRichments")
 DMRich <- function(x){
   dmrList[x] %>% 
     DMRichR::DMRichCpG(regions = NT_regions, genome = genome) %T>%
@@ -220,7 +221,6 @@ genicCount(sigRegions = NT_sigRegions, project = "NT")
 cpgCount(sigRegions = NT_sigRegions, project = "NT")
 
 # CpG and genic enrichment testing for Early vs Late ----------------------------------------
-dir.create("DMRichments")
 DMRich <- function(x){
   dmrList[x] %>% 
     DMRichR::DMRichCpG(regions = EL_regions, genome = genome) %T>%
@@ -250,7 +250,7 @@ EL_regions %>%
                  LOG10 = TRUE, ylim = NULL, threshold = 0.05, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
                  bin.size = 1e+06, file = "pdf", memo = "")
-file.rename("Rectangular-Manhattan.q.value.pdf", "PDO_DMRs/EL_manhattan.pdf")
+file.rename("Rect-Manhtn.q.value.pdf", "PDO_DMRs/EL_manhattan.pdf")
 
 NT_regions %>% 
   DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
@@ -261,7 +261,7 @@ NT_regions %>%
                  LOG10 = TRUE, ylim = NULL, threshold = 0.05, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
                  bin.size = 1e+06, file = "pdf", memo = "")
-file.rename("Rectangular-Manhattan.q.value.pdf", "PDO_DMRs/NT_manhattan.pdf")
+file.rename("Rect-Manhtn.q.value.pdf", "PDO_DMRs/NT_manhattan.pdf")
 
 # Prepare HOMER -------------------------------------------------------------------
 prepHOMER <- function (sigRegions = sigRegions, regions = regions, dir.name = dir.name) 

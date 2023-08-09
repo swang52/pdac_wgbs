@@ -58,12 +58,10 @@ cpgCount <- function(sigRegions = sigRegions, project = c("TM", "MPN", "EL", "NT
              Direction = rep(c("Hypermethylated", "Hypomethylated"), each = 4)) %>%
     write.table(., file = glue::glue("DMRichments/{project}_CpG_counts.txt"), quote = FALSE, sep = '\t ', row.names = F)
 }
-
 # Setup annotation databases and load files ----------------------------------------------
 load("RData/bismark_NPDOs.RData") # methylation values
 load("RData/bsseq_NPDOs.RData") # smoothened methylation values
 load("RData/settings_NPDOs.RData")
-
 DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb)
 
 # Normal vs Tumor DMRs ---------------------
@@ -75,13 +73,15 @@ NT_regions <- NT_regions %>%
 
 if(sum(NT_regions$qval < 0.05) < 100 & sum(NT_regions$pval < 0.01) != 0){
   NT_sigRegions <- NT_regions %>%
-    plyranges::filter(pval < 0.01)
-}else if(sum(NT_regions$qval < 0.01) >= 100){
+    plyranges::filter(pval < 0.05)
+}else if(sum(NT_regions$qval < 0.05) >= 100){
   NT_sigRegions <- NT_regions %>%
-    plyranges::filter(qval < 0.01)
-}else if(sum(NT_regions$pval < 0.05) == 0){
+    plyranges::filter(qval < 0.05)
+}else if(sum(regions$pval < 0.05) == 0){
   stop(glue::glue("No significant DMRs detected in {length(regions)} background regions"))
 }
+NT_sigRegions <- NT_sigRegions %>% plyranges::filter(seqnames != "chrX")
+NT_sigRegions <- NT_sigRegions %>% plyranges::filter(seqnames != "chrY")
 
 dir.create("PDO_DMRs")
 gr2bed(NT_sigRegions, "PDO_DMRs/NT_DMRs.bed")
@@ -90,7 +90,7 @@ save(NT_regions, NT_sigRegions, file = "RData/NT_DMRs.RData")
 #load("RData/NT_DMRs.RData")
 
 NT_sigRegions %>%
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
+  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %T>%
   DMRichR::DMReport(regions = NT_regions, bs.filtered = bs.filtered, coverage = coverage, name = "PDO_DMRs/NT_DMReport") %>% 
   openxlsx::write.xlsx(file = "PDO_DMRs/NT_DMRs_annotated.xlsx") # annotate DMRs
 
@@ -108,20 +108,22 @@ colors <- list(c("#4DAF4A", "#377EB8", "#E41A1C", "#FF7F00", "#984EA3") %>%
                  setNames(bs.filtered.bsseq %>% pData() %>% as.data.frame() %>% purrr::pluck("Stage") %>% 
                             unique() %>% sort() %>% rev()),
                c("#7FC97F", "#BEAED4", "#666666", "#FDC086", "#FFFF99") %>% setNames(bs.filtered.bsseq %>% pData() %>% as.data.frame() %>% purrr::pluck("Subtype") %>% 
-                            unique() %>% sort() %>% rev()),
-                c("#8DD3C7", "#FCCDE5") %>% setNames(bs.filtered.bsseq %>% pData() %>% as.data.frame() %>% purrr::pluck("CombinedStage") %>% 
-                            unique() %>% sort() %>% rev()))
+                                                                                       unique() %>% sort() %>% rev()),
+               c("#8DD3C7", "#FCCDE5") %>% setNames(bs.filtered.bsseq %>% pData() %>% as.data.frame() %>% purrr::pluck("CombinedStage") %>% 
+                                                      unique() %>% sort() %>% rev()))
 names(colors) = c("Stage", "Subtype", "CombinedStage")
 NT_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseq, testCovariate = testCovariate,
-                            filename = "PDO_DMRs/NT_heatmap.pdf", 
-                            colors = colors)
+                          filename = "PDO_DMRs/NT_heatmap.pdf", 
+                          colors = colors)
 
-# early vs late DMRs (p < .01) ---------------------
+# early vs late DMRs ---------------------
 # Modify bs.filtered
 bs.filteredPDO <- bs.filtered[, which(bs.filtered$Stage != "Normal")]
-bs.filteredPDO$Stage = droplevels(bs.filteredPDO$Stage)
+bs.filteredPDO$Stage <- droplevels(bs.filteredPDO$Stage) # drop normal from levels
 bs.filteredPDO$CombinedStage = bs.filteredPDO$Stage %>% as.data.frame() %>% 
   with(., ifelse(. == "Metastatic" | . == "Locally advanced", "Late", "Early")) %>% as.factor()
+save(bs.filteredPDO, file = "RData/bismark_PDOs.RData")
+#load("RData/bismark_PDOs.RData")
 
 EL_regions <- dmrseq::dmrseq(bs = bs.filteredPDO, cutoff = cutoff, minNumRegion = minCpGs, maxPerms = maxPerms, testCovariate = testCovariate)
 EL_regions <- EL_regions %>% 
@@ -131,13 +133,15 @@ EL_regions <- EL_regions %>%
 
 if(sum(EL_regions$qval < 0.05) < 100 & sum(EL_regions$pval < 0.01) != 0){
   EL_sigRegions <- EL_regions %>%
-    plyranges::filter(pval < 0.01)
+    plyranges::filter(pval < 0.05)
 }else if(sum(EL_regions$qval < 0.05) >= 100){
   EL_sigRegions <- EL_regions %>%
     plyranges::filter(qval < 0.05)
-}else if(sum(EL_regions$pval < 0.05) == 0){
+}else if(sum(regions$pval < 0.05) == 0){
   stop(glue::glue("No significant DMRs detected in {length(regions)} background regions"))
 }
+EL_sigRegions <- EL_sigRegions %>% plyranges::filter(seqnames != "chrX")
+EL_sigRegions <- EL_sigRegions %>% plyranges::filter(seqnames != "chrY")
 
 gr2bed(EL_sigRegions, "PDO_DMRs/EL_DMRs.bed")
 gr2bed(EL_regions, "PDO_DMRs/EL_backgroundRegions.bed")
@@ -145,14 +149,16 @@ save(EL_regions, EL_sigRegions, file = "RData/EL_DMRs.RData")
 #load("RData/EL_DMRs.RData")
 
 EL_sigRegions %>%
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
+  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %T>%
   DMRichR::DMReport(regions = EL_regions, bs.filtered = bs.filteredPDO, coverage = coverage, name = "PDO_DMRs/EL_DMReport") %>% 
   openxlsx::write.xlsx(file = "PDO_DMRs/EL_DMRs_annotated.xlsx") # annotate DMRs
 
 bs.filtered.bsseqPDO <- bs.filtered.bsseq[, which(bs.filtered.bsseq$Stage != "Normal")]
-bs.filtered.bsseqPDO$Stage = droplevels(bs.filtered.bsseqPDO$Stage)
+bs.filtered.bsseqPDO$Stage = droplevels(bs.filtered.bsseqPDO$Stage) # drop normal from levels
 bs.filtered.bsseqPDO$CombinedStage = bs.filtered.bsseqPDO$Stage %>% as.data.frame() %>% 
   with(., ifelse(. == "Metastatic" | . == "Locally advanced", "Late", "Early")) %>% as.factor()
+save(bs.filtered.bsseqPDO, file = "RData/bsseq_PDOs.RData")
+#load("RData/bsseq_PDOs.RData")
 
 print(glue::glue("Extracting individual smoothed methylation values of DMRs..."))
 bs.filtered.bsseqPDO %>%
@@ -175,27 +181,43 @@ names(colors) = c("Stage", "Subtype", "CombinedStage")
 EL_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseqPDO, testCovariate = as.character("Stage"), 
                           filename = "PDO_DMRs/EL_heatmap.pdf", 
                           colors = colors)
-EL_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseqPDO, testCovariate = testCovariate, 
-                           sigRegions = EL_sigRegions, filename = "PDO_DMRs/EL_heatmap.pdf", 
-                           colors = colors)
 
-# Identify overlaps (cutoff .01) ---------------
+# Identify overlaps ---------------
 EL_hyper_sigRegions <- EL_sigRegions %>% plyranges::filter(stat > 0)
 NT_hyper_sigRegions <- NT_sigRegions %>% plyranges::filter(stat > 0)
 EL_hypo_sigRegions <- EL_sigRegions %>% plyranges::filter(stat < 0)
 NT_hypo_sigRegions <- NT_sigRegions %>% plyranges::filter(stat < 0)
-hyper_overlap <- intersect(NT_hyper_sigRegions, EL_hyper_sigRegions, ignore.strand = T)
-hypo_overlap <- intersect(NT_hypo_sigRegions, EL_hypo_sigRegions, ignore.strand = T)
+hyper_overlap <- GenomicRanges::intersect(NT_hyper_sigRegions, EL_hyper_sigRegions, ignore.strand = T)
+hypo_overlap <- GenomicRanges::intersect(NT_hypo_sigRegions, EL_hypo_sigRegions, ignore.strand = T)
 overlap <- length(hyper_overlap) + length(hypo_overlap)
 ELonly <- length(EL_sigRegions) - overlap
 NTonly <- length(NT_sigRegions) - overlap
 fit = euler(c("Early vs Late" = ELonly, "hN vs hT" = NTonly, 
               "Early vs Late&hN vs hT" = overlap))
-pdf(file = "PDO_DMRs/euler01.pdf")
+pdf(file = "PDO_DMRs/euler.pdf")
 plot(fit, quantities = TRUE, legend = list(lables = c("Early vs Late", "hN vs hT")),
      fills = list(fill = c("#66D2D6", "#E56997"), alpha = 0.8))
 dev.off()
-rm(hyper_overlap, hypo_overlap, overlap, ELonly, NTonly, fit)
+
+# CpG and genic enrichment testing for hN vs hT ----------------------------------------
+DMRich <- function(x){
+  dmrList[x] %>% 
+    DMRichR::DMRichCpG(regions = NT_regions, genome = genome) %T>%
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
+    DMRichR::DMRichPlot(type = "CpG") %>% 
+    ggplot2::ggsave(glue::glue("DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.pdf"),
+                    plot = ., width = 4, height = 3)
+  dmrList[x] %>% 
+    DMRichR::DMRichGenic(regions = NT_regions, TxDb = TxDb, annoDb = annoDb) %T>%
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
+    DMRichR::DMRichPlot(type = "genic") %>% 
+    ggplot2::ggsave(glue::glue("DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
+}
+dmrList <- NT_sigRegions %>% DMRichR::dmrList()
+parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
+
+genicCount(sigRegions = NT_sigRegions, project = "NT")
+cpgCount(sigRegions = NT_sigRegions, project = "NT")
 
 # CpG and genic enrichment testing for Early vs Late ----------------------------------------
 dir.create("DMRichments")
@@ -218,26 +240,6 @@ parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
 genicCount(sigRegions = EL_sigRegions, project = "EL")
 cpgCount(sigRegions = EL_sigRegions, project = "EL")
 
-# CpG and genic enrichment testing for hN vs hT ----------------------------------------
-DMRich <- function(x){
-  dmrList[x] %>% 
-    DMRichR::DMRichCpG(regions = NT_regions, genome = genome) %T>%
-    openxlsx::write.xlsx(file = glue::glue("DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
-    DMRichR::DMRichPlot(type = "CpG") %>% 
-    ggplot2::ggsave(glue::glue("DMRichments/NT_{names(dmrList)[x]}_CpG_enrichments.pdf"),
-                    plot = ., width = 4, height = 3)
-  dmrList[x] %>% 
-    DMRichR::DMRichGenic(regions = NT_regions, TxDb = TxDb, annoDb = annoDb) %T>%
-    openxlsx::write.xlsx(file = glue::glue("DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
-    DMRichR::DMRichPlot(type = "genic") %>% 
-    ggplot2::ggsave(glue::glue("DMRichments/NT_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
-}
-dmrList <- NT_sigRegions %>% DMRichR::dmrList()
-parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
-
-genicCount(sigRegions = NT_sigRegions, project = "NT")
-cpgCount(sigRegions = NT_sigRegions, project = "NT")
-
 # Manhattan plots -------------------------------------------------
 EL_regions %>% 
   DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
@@ -245,10 +247,10 @@ EL_regions %>%
   sort() %>% dplyr::as_tibble() %>% dplyr::select(geneSymbol, seqnames, start, q.value)  %>% 
   dplyr::mutate(seqnames = substring(.$seqnames, 4)) %>%
   CMplot::CMplot(col = c("grey30", "grey60"), plot.type = "m", 
-                 LOG10 = TRUE, ylim = NULL, threshold = 0.01, threshold.lty = 1, threshold.lwd = 1, 
+                 LOG10 = TRUE, ylim = NULL, threshold = 0.05, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
                  bin.size = 1e+06, file = "pdf", memo = "")
-file.rename("Rect_Manhtn.q.value.pdf", "PDO_DMRs/EL_manhattan.pdf")
+file.rename("Rectangular-Manhattan.q.value.pdf", "PDO_DMRs/EL_manhattan.pdf")
 
 NT_regions %>% 
   DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
@@ -256,10 +258,10 @@ NT_regions %>%
   sort() %>% dplyr::as_tibble() %>% dplyr::select(geneSymbol, seqnames, start, q.value)  %>% 
   dplyr::mutate(seqnames = substring(.$seqnames, 4)) %>%
   CMplot::CMplot(col = c("grey30", "grey60"), plot.type = "m", 
-                 LOG10 = TRUE, ylim = NULL, threshold = 0.01, threshold.lty = 1, threshold.lwd = 1, 
+                 LOG10 = TRUE, ylim = NULL, threshold = 0.05, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
                  bin.size = 1e+06, file = "pdf", memo = "")
-file.rename("Rect_Manhtn.q.value.pdf", "PDO_DMRs/NT_manhattan.pdf")
+file.rename("Rectangular-Manhattan.q.value.pdf", "PDO_DMRs/NT_manhattan.pdf")
 
 # Prepare HOMER -------------------------------------------------------------------
 prepHOMER <- function (sigRegions = sigRegions, regions = regions, dir.name = dir.name) 
@@ -274,83 +276,28 @@ prepHOMER <- function (sigRegions = sigRegions, regions = regions, dir.name = di
 EL_sigRegions %>% prepHOMER(regions = EL_regions, dir.name = "PDO_DMRs/EL_HOMER")
 NT_sigRegions %>% prepHOMER(regions = NT_regions, dir.name = "PDO_DMRs/NT_HOMER")
 
-# ChromHMM and Reference Epigenomes ---------------------------------------
-if(length(grep("genomecenter.ucdavis.edu", .libPaths())) > 0 & genome == "hg38"){
-  LOLA <- function(x){
-    dir.create(names(dmrList)[x])
-    setwd(names(dmrList)[x])
-    dmrList[x] %>%
-      DMRichR::chromHMM(regions = regions,
-                        cores = floor(cores/3)) %>% 
-      DMRichR::chromHMM_heatmap()
-    if(file.exists("Rplots.pdf")){file.remove("Rplots.pdf")}
-  }
-  
-  cores = 3
-  dir.create("LOLA_NT")
-  setwd("LOLA_NT")
-  dmrList <- NT_sigRegions %>% DMRichR::dmrList()
-  regions = NT_regions
-  parallel::mclapply(seq_along(dmrList), LOLA, mc.cores = 3, mc.silent = TRUE)
-  setwd("..")
-  
-  dir.create("LOLA_EL")
-  setwd("LOLA_EL")
-  dmrList <- EL_sigRegions %>% DMRichR::dmrList()
-  regions = EL_regions
-  parallel::mclapply(seq_along(dmrList), LOLA, mc.cores = 3, mc.silent = TRUE)
-  setwd("..")
-}
-
 # Machine learning --------------------------------------------------------
-setwd("PDO_DMRs")
-tryCatch({methylLearnOutput <- DMRichR::methylLearn(bs.filtered.bsseq = bs.filtered.bsseqPDO,
-                                                    sigRegions = EL_sigRegions,
-                                                    testCovariate = testCovariate,
-                                                    TxDb = TxDb,
-                                                    annoDb = annoDb,
-                                                    topPercent = 1,
-                                                    output = "all",
-                                                    saveHtmlReport = TRUE)
-dir.create("Machine_learning")
-if(length(methylLearnOutput) == 1) {
-  openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput), 
-                       file = "Machine_learning/Machine_learning_output_one.xlsx") 
-} else {
-  openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput$`Annotated common DMRs`,
-                            RF_Ranking_All_DMRs = methylLearnOutput$`RF ranking`,
-                            SVM_Ranking_All_DMRs = methylLearnOutput$`SVM ranking`),
-                       file = "Machine_learning/Machine_learning_output_all.xlsx") 
-}
-save(methylLearnOutput, file = "RData/machineLearning.RData")
-#load("RData/machineLearing.RData")
-},
-error = function(error_condition) {
-  print(glue::glue("Warning: methylLearn did not finish. \\
-                      You may have not had enough top DMRs across algorithms."))
-})
-rm(methylLearnOutput)
-file.rename("Machine_learning", "EL_Machine_Learning")
-
+dir.create("NT_Machine_learning")
+setwd("NT_Machine_learning")
+regions <- NT_regions %>% plyranges::filter(pval < 0.01)
 tryCatch({methylLearnOutput <- DMRichR::methylLearn(bs.filtered.bsseq = bs.filtered.bsseq,
-                                                    sigRegions = NT_sigRegions,
+                                                    sigRegions = regions,
                                                     testCovariate = testCovariate,
                                                     TxDb = TxDb,
                                                     annoDb = annoDb,
                                                     topPercent = 1,
                                                     output = "all",
                                                     saveHtmlReport = TRUE)
-dir.create("Machine_learning")
 if(length(methylLearnOutput) == 1) {
   openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput), 
-                       file = "Machine_learning/Machine_learning_output_one.xlsx") 
+                       file = "./Machine_learning/Machine_learning_output_one.xlsx") 
 } else {
   openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput$`Annotated common DMRs`,
                             RF_Ranking_All_DMRs = methylLearnOutput$`RF ranking`,
                             SVM_Ranking_All_DMRs = methylLearnOutput$`SVM ranking`),
-                       file = "Machine_learning/Machine_learning_output_all.xlsx") 
+                       file = "./Machine_learning/Machine_learning_output_all.xlsx") 
 }
-save(methylLearnOutput, file = "RData/machineLearning.RData")
+save(methylLearnOutput, file = "RData/NT_machineLearning.RData")
 #load("RData/machineLearing.RData")
 },
 error = function(error_condition) {
@@ -358,4 +305,32 @@ error = function(error_condition) {
                       You may have not had enough top DMRs across algorithms."))
 })
 rm(methylLearnOutput)
-file.rename("Machine_learning", "NT_Machine_Learning")
+
+dir.create("EL_Machine_learning")
+setwd("EL_Machine_learning")
+regions <- EL_regions %>% plyranges::filter(pval < 0.01)
+tryCatch({methylLearnOutput <- DMRichR::methylLearn(bs.filtered.bsseq = bs.filtered.bsseq,
+                                                    sigRegions = regions,
+                                                    testCovariate = testCovariate,
+                                                    TxDb = TxDb,
+                                                    annoDb = annoDb,
+                                                    topPercent = 1,
+                                                    output = "all",
+                                                    saveHtmlReport = TRUE)
+if(length(methylLearnOutput) == 1) {
+  openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput), 
+                       file = "./Machine_learning/Machine_learning_output_one.xlsx") 
+} else {
+  openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput$`Annotated common DMRs`,
+                            RF_Ranking_All_DMRs = methylLearnOutput$`RF ranking`,
+                            SVM_Ranking_All_DMRs = methylLearnOutput$`SVM ranking`),
+                       file = "./Machine_learning/Machine_learning_output_all.xlsx") 
+}
+save(methylLearnOutput, file = "RData/EL_machineLearning.RData")
+#load("RData/machineLearing.RData")
+},
+error = function(error_condition) {
+  print(glue::glue("Warning: methylLearn did not finish. \\
+                      You may have not had enough top DMRs across algorithms."))
+})
+rm(methylLearnOutput)

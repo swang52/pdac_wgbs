@@ -20,6 +20,7 @@ load("RData/TM_DMRs.RData")
 load("RData/MPN_DMRs.RData")
 load("RData/NT_DMRs.RData")
 load("RData/EL_DMRs.RData")
+load("RData/sub_DMRs.RData")
 
 dir.create("DMRichments")
 # Enrichment multiplot functions ----------------------------------------
@@ -61,16 +62,20 @@ countEnrich <- function (project = c("TM", "MPN", "EL", "NT", "sub"), type = c("
         labs(x ="", y = "") + ggtitle(title) +
         scale_x_discrete(labels=c("Hypermethylated", "Hypomethylated")) +
         theme_minimal() + 
+        theme(text = element_text(size = 6), axis.text = element_text(size = 6), 
+              axis.title = element_text(size = 6), legend.text = element_text(size = 6)) +
         scale_fill_manual(values = c("forestgreen", "goldenrod2", "dodgerblue", "blue3"))
     }else if(type == "genic"){
       data$Annotation <- factor(data$Annotation, 
             levels=c("Promoter", "5UTR", "Exon", "Intron", "3UTR", "Downstream", "Distal Intergenic"))
       ggplot(data, aes(fill=Annotation, y=Percent, x=Direction)) + 
         geom_bar(position="dodge", stat = "identity", color = "black")+
-        scale_y_continuous(labels = scales::percent) +
+        scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
         labs(x ="", y = "") + ggtitle(title) +
         scale_x_discrete(labels=c("Hypermethylated", "Hypomethylated")) +
         theme_minimal() + 
+        theme(text = element_text(size = 6), axis.text = element_text(size = 6), 
+              axis.title = element_text(size = 6), legend.text = element_text(size = 6)) +
         scale_fill_manual(values=wesanderson::wes_palette("Zissou1", n = 7, type = "continuous") %>% rev())
     }
   }
@@ -92,9 +97,8 @@ NT_CpG <- DMparseR(direction =  c("Hypermethylated DMRs","Hypomethylated DMRs"),
   DMRichR::DMRichPlot(type = "CpG",multi = TRUE) + theme + ggtitle("hN vs hT")
 EL_CpG <- DMparseR(direction =  c("Hypermethylated DMRs","Hypomethylated DMRs"),type = "CpG", project = "EL") %>%
   DMRichR::DMRichPlot(type = "CpG",multi = TRUE) + theme + ggtitle("Early vs Late")
-cpgPlot <- egg::ggarrange(MPN_CpG, TM_CpG + theme2, 
-                            NT_CpG + theme2, EL_CpG + theme2, nrow=1)
-ggplot2::ggsave(cpgPlot, width = 8, height = 2, filename = "DMRichments/CpG_multi_plot.pdf")
+sub_CpG <- DMparseR(direction =  c("Hypermethylated DMRs","Hypomethylated DMRs"),type = "CpG", project = "sub") %>%
+  DMRichR::DMRichPlot(type = "CpG",multi = TRUE) + theme + ggtitle("Progenitor vs Squamous")
 
 #Genic
 MPN_genic <- DMparseR(direction =  c("Hypermethylated DMRs","Hypomethylated DMRs"),type = "genic", project = "MPN") %>%
@@ -105,78 +109,50 @@ NT_genic <- DMparseR(direction =  c("Hypermethylated DMRs","Hypomethylated DMRs"
   DMRichR::DMRichPlot(type = "genic",multi = TRUE) + ggtitle("hN vs hT") + theme
 EL_genic <- DMparseR(direction =  c("Hypermethylated DMRs","Hypomethylated DMRs"),type = "genic", project = "EL") %>%
   DMRichR::DMRichPlot(type = "genic",multi = TRUE) + ggtitle("Early vs Late") + theme
-genicPlot <- egg::ggarrange(MPN_genic, TM_genic + theme2, 
-                            NT_genic + theme2, EL_genic + theme2, nrow=1)
-ggplot2::ggsave(genicPlot, width = 8, height = 3, filename = "DMRichments/genic_multi_plot.pdf")
+sub_genic <- DMparseR(direction =  c("Hypermethylated DMRs","Hypomethylated DMRs"),type = "genic", project = "sub") %>%
+  DMRichR::DMRichPlot(type = "genic",multi = TRUE) + theme + ggtitle("Progenitor vs Squamous")
 
 genicCpG <- egg::ggarrange(MPN_CpG, TM_CpG + theme2, 
                NT_CpG + theme2, EL_CpG + theme2,
                MPN_genic, TM_genic + theme2, 
                NT_genic + theme2, EL_genic + theme2,
                nrow = 2, heights = c(1,2))
-save(genicCpG, file = "RData/genicCpG_fig.RData")
 ggplot2::ggsave(genicCpG, width = 8, height = 5, filename = "DMRichments/genic_CpG_multi_plot.pdf")
 
+SubgenicCpG <- egg::ggarrange(sub_CpG, sub_genic, nrow=2)
+ggplot2::ggsave(SubgenicCpG, width = 8, height = 5, file = "DMRichments/sub_genic_CpG_multiPlot.pdf")
+
 rm(MPN_CpG, TM_CpG, NT_CpG, EL_CpG, 
-   MPN_genic, TM_genic, NT_genic, EL_genic)
+   MPN_genic, TM_genic, NT_genic, EL_genic,
+   sub_CpG, sub_genic)
 
 # CpG and genic enrichment counts ----------------
+theme = theme(legend.position = "none")
+theme2 = theme(axis.text.y = element_blank(),
+              axis.ticks.y = element_blank(),
+              axis.title.y = element_blank())
 MPN_CpG <- countEnrich(project = "MPN", type = "CpG")
 TM_CpG <- countEnrich(project = "TM", type = "CpG")
 NT_CpG <- countEnrich(project = "NT", type = "CpG")
 EL_CpG <- countEnrich(project = "EL", type = "CpG")
-ggsave(plot_grid(MPN_CpG + theme(legend.position = "none"), 
-                 TM_CpG + theme(legend.position = "none"), 
-                 NT_CpG + theme(legend.position = "none"), 
-                 EL_CpG, nrow = 1), 
-       width = 8, height = 2, file = "DMRichments/CpG_count_multiPlot.pdf")
 
 MPN_genic <- countEnrich(project = "MPN", type = "genic")
 TM_genic <- countEnrich(project = "TM", type = "genic")
 NT_genic <- countEnrich(project = "NT", type = "genic")
 EL_genic <- countEnrich(project = "EL", type = "genic")
 
-ggsave(plot_grid(MPN_genic + theme(legend.position = "none"), 
-                 TM_genic + theme(legend.position = "none"),
-                 NT_genic + theme(legend.position = "none"), 
-                 EL_genic, nrow = 1), 
-       width = 8, height = 2, file = "DMRichments/genic_count_multiPlot.pdf")
+genicCpG <- egg::ggarrange(MPN_CpG + theme, 
+                           TM_CpG + theme + theme2, 
+                           NT_CpG + theme + theme2, 
+                           EL_CpG + theme2, 
+                           MPN_genic + theme, 
+                           TM_genic + theme + theme2, 
+                           NT_genic + theme + theme2, 
+                           EL_genic + theme2, nrow=2)
+ggplot2::ggsave(genicCpG, width = 8, height = 5, file = "DMRichments/genic_CpG_count_multiPlot.pdf")
 
-ggsave(plot_grid(MPN_CpG + theme(legend.position = "none"), 
-                 TM_CpG + theme(legend.position = "none"), 
-                 NT_CpG + theme(legend.position = "none"), 
-                 EL_CpG, 
-                 MPN_genic + theme(legend.position = "none"), 
-                 TM_genic + theme(legend.position = "none"),
-                 NT_genic + theme(legend.position = "none"), 
-                 EL_genic, nrow = 2, align = "v"), 
-       width = 8, height = 6, file = "DMRichments/genic_CpG_multi.pdf")
+sub_CpG <- countEnrich(project = "sub", type = "CpG")
+sub_genic <- countEnrich(project = "sub", type = "genic")
+SubgenicCpG <- egg::ggarrange(sub_CpG, sub_genic, nrow=1)
+ggplot2::ggsave(SubgenicCpG, width = 8, height = 5, file = "DMRichments/sub_genic_CpG_count_multiPlot.pdf")
 
-# CpG enrichment counts
-MPN_hyper_CpG <- MPN_hyper_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() # hypermethylated CpGs
-yes_hyper <- sapply(MPN_hyper_CpG,FUN = function(x){length(x[x=="Yes"])})
-count_hyper <- data.frame(Count = yes_hyper, Percent = yes_hyper/length(MPN_hyper_sigRegions))
-
-MPN_hypo_CpG <- MPN_hypo_sigRegions %>% 
-  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
-  dplyr::select(CpG.Island, CpG.Shore, CpG.Shelf, Open.Sea) %>% as.data.frame() # hypomethylated CpGs
-yes_hypo <- sapply(MPN_hypo_CpG,FUN = function(x){length(x[x=="Yes"])})
-count_hypo <- data.frame(Count = yes_hypo, Percent = yes_hypo/length(MPN_hypo_sigRegions))
-
-MPN_counts <- data.frame(CpG = rep(rownames(count_hyper),2),
-                         Count = c(count_hyper[[1]], count_hypo[[1]]),
-                         Percent = round(c(count_hyper[[2]], count_hypo[[2]]),2),
-                         Direction = rep(c("Hypermethylated", "Hypomethylated"), each=4)) # initialize dataframe
-write.table(MPN_counts, file = "mNPTM_DMRichments/MPN_CpG_counts.txt", quote = FALSE, sep = '\t ', row.names = F) # saves the results as a text file in the working directory
-
-pdf(file = "mNPTM_DMRichments/MPN_CpG_counts.pdf")
-ggplot(MPN_counts, aes(fill=CpG, y=Percent, x=Direction)) + 
-  geom_bar(position="dodge", stat = "identity", color = "black")+
-  scale_y_continuous(labels = scales::percent, limits = c(0,1)) +
-  labs(x ="", y = "") + ggtitle("mN/mP vs mM") +
-  scale_x_discrete(labels=c("Hypermethylated", "Hypomethylated")) +
-  theme_minimal() + 
-  scale_fill_manual(values = c("forestgreen", "goldenrod2", "dodgerblue", "blue3"))
-dev.off()

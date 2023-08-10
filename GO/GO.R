@@ -69,21 +69,34 @@ NT %>% openxlsx::write.xlsx(file = "PDO_Ontologies/NT_enrichr.xlsx")
 EL <- GO(sigRegions = EL_sigRegions, dbs = dbs, TxDb = TxDb, annoDb = annoDb)
 EL %>% openxlsx::write.xlsx(file = "PDO_Ontologies/EL_enrichr.xlsx")
 
-sub <- GO(sigRegions = sub_sigRegions, dbs = dbs, TxDb = TxDb, annoDb = annoDb)
-sub %>% openxlsx::write.xlsx(file = "PDO_Ontologies/sub_enrichr.xlsx")
+sub_hyper_regions <- sub_sigRegions %>% plyranges::filter(stat > 0)
+sub_hyper <- GO(sigRegions = sub_hyper_regions, dbs = dbs, TxDb = TxDb, annoDb = annoDb)
+sub_hyper %>% openxlsx::write.xlsx(file = "PDO_Ontologies/sub_hyper_enrichr.xlsx")
+
+sub_hypo_regions <- sub_sigRegions %>% plyranges::filter(stat < 0)
+sub_hypo <- GO(sigRegions = sub_hypo_regions, dbs = dbs, TxDb = TxDb, annoDb = annoDb)
+sub_hypo %>% openxlsx::write.xlsx(file = "PDO_Ontologies/sub_hypo_enrichr.xlsx")
 
 # GO dot plot for PDOs ------
 top <- 8
 pNT <- GOplot(data = NT, dbs = dbs, top = top) +
   scale_size(breaks = c(25, 50, 75), range = c(.5, 2.5)) 
-ggsave(pNT, width = 5, height = 5, file = "PDO_Ontologies/NT.pdf")
+ggsave(pNT, width = 5, height = 4, file = "PDO_Ontologies/NT.pdf")
 
 pEL <- GOplot(data = EL, dbs = dbs, top = top) +
   scale_size(breaks = c(10, 20, 30), range = c(.5, 2.5)) 
-ggsave(pEL, width = 5, height = 5, file = "PDO_Ontologies/EL.pdf")
+ggsave(pEL, width = 5, height = 4, file = "PDO_Ontologies/EL.pdf")
 
-pSub <- GOplot(data = sub, dbs = dbs, top = top)
-ggsave(pSub, width = 5, height = 5, file = "PDO_Ontologies/sub.pdf")
+pSub_hyper <- GOplot(data = sub_hyper, dbs = dbs, top = top) +
+  scale_size(breaks = c(10, 20, 30), range = c(.5, 2.5)) 
+ggsave(pSub_hyper, width = 5, height = 4, file = "PDO_Ontologies/sub_hyper.pdf")
+
+pSub_hypo <- GOplot(data = sub_hypo, dbs = dbs, top = top) +
+  scale_size(breaks = c(10, 30, 50), range = c(.5, 2.5)) 
+ggsave(pSub_hypo, width = 5, height = 4, file = "PDO_Ontologies/sub_hypo.pdf")
+
+ggsave(plot_grid(pNT, pEL, ncol=1, align="v"), width = 4.8, height = 7.5, file = "PDO_Ontologies/NTEL.pdf")
+ggsave(plot_grid(pSub_hyper, pSub_hypo, ncol=1, align="v"), width = 4.8, height = 7.5, file = "PDO_Ontologies/sub.pdf")
 
 # Mouse Ontologies ------------------------------------
 dir.create("mNPTM_Ontologies")

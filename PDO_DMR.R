@@ -249,7 +249,7 @@ EL_regions %>%
   CMplot::CMplot(col = c("grey30", "grey60"), plot.type = "m", 
                  LOG10 = TRUE, ylim = NULL, threshold = 0.05, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
-                 bin.size = 1e+06, file = "pdf", memo = "")
+                 bin.size = 1e+06, file = "pdf")
 file.rename("Rect-Manhtn.q.value.pdf", "PDO_DMRs/EL_manhattan.pdf")
 
 NT_regions %>% 
@@ -260,7 +260,7 @@ NT_regions %>%
   CMplot::CMplot(col = c("grey30", "grey60"), plot.type = "m", 
                  LOG10 = TRUE, ylim = NULL, threshold = 0.05, threshold.lty = 1, threshold.lwd = 1, 
                  threshold.col = "black", cex = 0.5, cex.axis = 0.7, amplify = FALSE, chr.den.col = c("darkgreen", "yellow", "red"), 
-                 bin.size = 1e+06, file = "pdf", memo = "")
+                 bin.size = 1e+06, file = "pdf")
 file.rename("Rect-Manhtn.q.value.pdf", "PDO_DMRs/NT_manhattan.pdf")
 
 # Prepare HOMER -------------------------------------------------------------------

@@ -177,15 +177,15 @@ sub_sigRegions %>% heatmap(bs.filtered.bsseq = bs.filtered.bsseqSub, testCovaria
 DMRich <- function(x){
   dmrList[x] %>% 
     DMRichR::DMRichCpG(regions = sub_regions, genome = genome) %T>%
-    openxlsx::write.xlsx(file = glue::glue("Subtype_DMRs/subtype_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/sub_{names(dmrList)[x]}_CpG_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "CpG") %>% 
-    ggplot2::ggsave(glue::glue("Subtype_DMRs/subtype_{names(dmrList)[x]}_CpG_enrichments.pdf"),
+    ggplot2::ggsave(glue::glue("DMRichments/sub_{names(dmrList)[x]}_CpG_enrichments.pdf"),
                     plot = ., width = 4, height = 3)
   dmrList[x] %>% 
     DMRichR::DMRichGenic(regions = sub_regions, TxDb = TxDb, annoDb = annoDb) %T>%
-    openxlsx::write.xlsx(file = glue::glue("Subtype_DMRs/subtype_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
+    openxlsx::write.xlsx(file = glue::glue("DMRichments/sub_{names(dmrList)[x]}_genic_enrichments.xlsx")) %>% 
     DMRichR::DMRichPlot(type = "genic") %>% 
-    ggplot2::ggsave(glue::glue("Subtype_DMRs/subtype_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
+    ggplot2::ggsave(glue::glue("DMRichments/sub_{names(dmrList)[x]}_genic_enrichments.pdf"), plot = ., width = 4, height = 4)
 }
 dmrList <- sub_sigRegions %>% DMRichR::dmrList()
 parallel::mclapply(seq_along(dmrList), DMRich, mc.cores = 1, mc.silent = TRUE)
@@ -216,3 +216,34 @@ prepHOMER <- function (sigRegions = sigRegions, regions = regions, dir.name = di
 }
 
 sub_sigRegions %>% prepHOMER(regions = sub_regions, dir.name = "Subtype_DMRs/Sub_HOMER")
+
+# Machine Learning -------------------------------------------------------------------
+sub_sigRegions <- sub_regions %>% plyranges::filter(pval < 0.05) %>% plyranges::filter(seqnames != "chrX") %>% plyranges::filter(seqnames != "chrY")
+
+dir.create("Sub")
+setwd("Sub")
+tryCatch({methylLearnOutput <- DMRichR::methylLearn(bs.filtered.bsseq = bs.filtered.bsseqSub,
+                                                    sigRegions = sub_sigRegions,
+                                                    testCovariate = "Subtype",
+                                                    TxDb = TxDb,
+                                                    annoDb = annoDb,
+                                                    topPercent = 1,
+                                                    output = "all",
+                                                    saveHtmlReport = TRUE)
+if(length(methylLearnOutput) == 1) {
+  openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput), 
+                       file = "./Machine_learning_output_one.xlsx") 
+} else {
+  openxlsx::write.xlsx(list(Annotations_Common_DMRs = methylLearnOutput$`Annotated common DMRs`,
+                            RF_Ranking_All_DMRs = methylLearnOutput$`RF ranking`,
+                            SVM_Ranking_All_DMRs = methylLearnOutput$`SVM ranking`),
+                       file = "./Machine_learning_output_all.xlsx") 
+}
+save(methylLearnOutput, file = "Sub_machineLearning.RData")
+#load("machineLearing.RData")
+},
+error = function(error_condition) {
+  print(glue::glue("Warning: methylLearn did not finish. \\
+                      You may have not had enough top DMRs across algorithms."))
+})
+rm(methylLearnOutput)

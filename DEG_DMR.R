@@ -96,12 +96,12 @@ rownames(TM_countData) <- TM_countData$Gene
 TM_countData <- TM_countData[,2:length(TM_countData)]
 
 # Methylation table q < .01
-#DMRichR::annotationDatabases(genome = "mm9", EnsDb = FALSE)
-#TM_DMRs <- read.table("mNPTM_DMRs/TM_DMR_individual_smoothed_methylation.txt",header=T, sep = "\t") %>%
-#  makeGRangesFromDataFrame(., keep.extra.columns = T) %>%
-#  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) # 4116 DMRs
-#TM_DMRs <- TM_DMRs[which(TM_DMRs$geneSymbol %in% rownames(TM_countData)),] # 3456 regions
-#TM_meth <- TM_DMRs[,c(1,2,3,32,12:19)]
+DMRichR::annotationDatabases(genome = "mm9", EnsDb = FALSE)
+TM_DMRs <- read.table("mNPTM_DMRs/TM_DMR_individual_smoothed_methylation.txt",header=T, sep = "\t") %>%
+  makeGRangesFromDataFrame(., keep.extra.columns = T) %>%
+  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) # 4116 DMRs
+TM_DMRs <- TM_DMRs[which(TM_DMRs$geneSymbol %in% rownames(TM_countData)),] # 3456 regions
+TM_meth <- TM_DMRs[,c(1,2,3,32,12:19)]
 
 # Methylation table p < .05
 DMRichR::annotationDatabases(genome = "mm9", EnsDb = FALSE)
@@ -138,12 +138,12 @@ write.table(norm_read, file = "DMR_DEG/PDO_normRead.txt", quote = FALSE, sep = '
 #norm_read <- read.table("DMR_DEG/PDO_normRead.txt", header = T, sep = '\t')
 
 # Methylation table q < .05
-#DMRichR::annotationDatabases(genome = "hg38", EnsDb = FALSE)
-#EL_DMRs <- read.table("PDO_DMRs/EL_DMR_individual_smoothed_methylation.txt",header=T, sep = "\t") %>%
-#          makeGRangesFromDataFrame(., keep.extra.columns = T) %>% 
-#          DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) # 5374 DMRs
-#EL_DMRs <- EL_DMRs[which(EL_DMRs$geneSymbol %in% rownames(norm_read)),] # 3940 DMRs
-#EL_meth <- EL_DMRs[,c(1,2,3,51,12:42)]
+DMRichR::annotationDatabases(genome = "hg38", EnsDb = FALSE)
+EL_DMRs <- read.table("PDO_DMRs/EL_DMR_individual_smoothed_methylation.txt",header=T, sep = "\t") %>%
+          makeGRangesFromDataFrame(., keep.extra.columns = T) %>% 
+          DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) # 5374 DMRs
+EL_DMRs <- EL_DMRs[which(EL_DMRs$geneSymbol %in% rownames(norm_read)),] # 3940 DMRs
+EL_meth <- EL_DMRs[,c(1,2,3,51,12:42)]
 
 # Methylation table p < .05
 DMRichR::annotationDatabases(genome = "hg38", EnsDb = FALSE)
@@ -220,26 +220,18 @@ TMmetaData = read.table("DMR_DEG/TM_metadata.txt",header=T, sep = "\t")
 row.names(TMmetaData) = TMmetaData[,1]
 TMmetaData = TMmetaData[2]
 
-hgene <- "PLAT"
+hgene <- "NELL2"
 hDMRs = EL_DMRs[which(EL_DMRs$geneSymbol == hgene),] # list of DMRs associated with gene
 index = 1 # index of DMR to plot
 corrGene(gene = hgene, index = index, sigco = EL_sigco, reads = norm_read, metadata = ELmetaData, methyl = EL_meth, org = "human")
-file.rename("DMR_DEG/PLAT_1.pdf", "DMR_DEG/hPLAT_1.pdf")
+file.rename("DMR_DEG/NELL2_1.pdf", "DMR_DEG/hNELL2_1.pdf")
 
-mgene <- "Plat"
-mDMRs = TM_DMRs[which(TM_DMRs$geneSymbol == mgene),] # list of DMRs associated with gene
-index = 2
-corrGene(gene = mgene, index = index, sigco = TM_sigco, reads = TM_countData, metadata = TMmetaData, methyl = TM_meth, org = "mouse")
-file.rename("DMR_DEG/Plat_2.pdf", "DMR_DEG/mPlat_2.pdf")
+hgene <- "DLGAP1"
+hDMRs = EL_DMRs[which(EL_DMRs$geneSymbol == hgene),] # list of DMRs associated with gene
+index = 4 # index of DMR to plot
+corrGene(gene = hgene, index = index, sigco = EL_sigco, reads = norm_read, metadata = ELmetaData, methyl = EL_meth, org = "human")
 
-hgene <- "LY6D"
+hgene <- "SH3GL2"
 hDMRs = EL_DMRs[which(EL_DMRs$geneSymbol == hgene),] # list of DMRs associated with gene
 index = 1 # index of DMR to plot
 corrGene(gene = hgene, index = index, sigco = EL_sigco, reads = norm_read, metadata = ELmetaData, methyl = EL_meth, org = "human")
-file.rename("DMR_DEG/LY6D_1.pdf", "DMR_DEG/hLY6D_1.pdf")
-
-mgene <- "Ly6d"
-mDMRs = TM_DMRs[which(TM_DMRs$geneSymbol == mgene),] # list of DMRs associated with gene
-index = 1
-corrGene(gene = mgene, index = index, sigco = TM_sigco, reads = TM_countData, metadata = TMmetaData, methyl = TM_meth, org = "mouse")
-file.rename("DMR_DEG/Ly6d_1.pdf", "DMR_DEG/mLy6d_1.pdf")

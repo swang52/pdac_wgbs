@@ -247,3 +247,23 @@ error = function(error_condition) {
                       You may have not had enough top DMRs across algorithms."))
 })
 rm(methylLearnOutput)
+
+# DMR plots -----------------
+annoTrack <- dmrseq::getAnnot("hg38")
+avg_bs = collapseBSseq(bs.filtered, group = c("A", "B", "A", "A", "B", "A", "A", "B"))
+avg_bs = collapseBSseq(bs.filtered, group = c("A", "A", "A", "A", "A", "A", "A", "A", 
+                                              "B", "B", "B", "A", "A", "B", "A", "B", "A", "B"))
+gene_name = "BMP4"
+coor = data.frame(chr = c("chr14"), start = c(53949736),
+                   end = c(53956825)) %>% makeGRangesFromDataFrame(.)
+DMRs = sub_sigRegions %>%
+  DMRichR::annotateRegions(TxDb = TxDb, annoDb = annoDb) %>%
+  plyranges::filter(geneSymbol == gene_name) %>%
+  makeGRangesFromDataFrame(., keep.extra.columns = TRUE)
+pdf(paste(gene_name,".pdf", sep = ""), height = 4, width = 8)
+dmrseq::plotDMRs(avg_bs_n, regions = coor, testCovariate = "Subtype",
+                 extend = 1000, main = gene_name,
+                 annoTrack = annoTrack, addRegions = DMRs,
+                 regionCol = "#FF00001A",lwd = 1,
+                 addPoints = FALSE, qval = FALSE, stat = FALSE)
+dev.off()

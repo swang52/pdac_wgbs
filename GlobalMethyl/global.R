@@ -40,6 +40,11 @@ minCpGs = 5
 maxPerms = 10
 cutoff = .1
 
+settings_env <- ls(all = TRUE)
+save(list = settings_env, file = "RData/settings_mNPTM.RData")
+#load("RData/settings_mNPTMs.RData")
+DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
+
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
                               meta = openxlsx::read.xlsx("sample_info_mNPTM.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
@@ -53,11 +58,6 @@ save(bs.filtered, file = "RData/bismark_mNPTM.RData")
 bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::MulticoreParam(workers = cores, progressbar = TRUE)) # get individual smoothened methylation values
 save(bs.filtered.bsseq,file = "RData/bsseq_mNPTM.RData")
 #load("RData/bsseq_mNPTM.RData")
-
-DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
-settings_env <- ls(all = TRUE)
-save(list = settings_env, file = "RData/settings_mNPTM.RData")
-#load("RData/settings_mNPTMs.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%
@@ -130,7 +130,7 @@ genome <- as.character("hg38") # Options: hg38, hg19, mm10, mm9, rheMac10, rheMa
 coverage <- as.integer(1) # CpG coverage cutoff minimum value is 1
 perGroup <- as.double(.75) # Percent of samples in all combinations of covariates meeting CpG coverage cutoff; Options: 0-1
 testCovariate <- as.character("CombinedStage") # Test covariate 
-adjustCovariate <- NULL # Covariates to directly adjust 
+adjustCovariate <- "Sex" # Covariates to directly adjust 
 matchCovariate <- NULL # Covariate to balance permutations
 cores <- as.integer(20) # Number of cores (at least 3)
 sexCheck <- FALSE # Logical to confirm sex of each sample
@@ -139,25 +139,22 @@ minCpGs = 5
 maxPerms = 10
 cutoff = .1
 
+settings_env <- ls(all = TRUE)
+save(list = settings_env, file = "RData/settings_NPDOs.RData")
+#load("RData/settings_NPDOs.RData")
+DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
+
 ## Load and process samples ##
 bs.filtered <- processBismark(files = list.files(path = getwd(), pattern = "*.txt.gz"),
                               meta = openxlsx::read.xlsx("sample_info_PDO.xlsx",colNames = TRUE) %>% dplyr::mutate_if(is.character, as.factor),
                               testCovariate = testCovariate, adjustCovariate = adjustCovariate, matchCovariate = matchCovariate,
                               coverage = coverage, cores = cores, perGroup = perGroup, sexCheck = sexCheck)
-bs.filtered = chrSelectBSseq(bs.filtered, seqnames = c("chr1","chr2","chr3","chr4","chr5","chr6","chr7","chr8","chr9","chr10","chr11",
-                                                       "chr12","chr13","chr14","chr15","chr16","chr17","chr18","chr19","chr20",
-                                                       "chr21","chr22"), order = TRUE) # removes sex chromosomes
 save(bs.filtered, file = "RData/bismark_NPDOs.RData")
 #load("RData/bismark_NPDOs.RData")
 
 bs.filtered.bsseq <- bsseq::BSmooth(bs.filtered, BPPARAM = BiocParallel::MulticoreParam(workers = cores, progressbar = TRUE)) # get individual smoothened methylation values
 save(bs.filtered.bsseq,file = "RData/bsseq_NPDOs.RData")
 #load("RData/bsseq_NPDOs.RData")
-
-DMRichR::annotationDatabases(genome = genome, EnsDb = EnsDb) # setup annotation databases
-settings_env <- ls(all = TRUE)
-save(list = settings_env, file = "RData/settings_NPDOs.RData")
-#load("RData/settings_NPDOs.RData")
 
 ## Perform PCA ##
 group =  bs.filtered.bsseq %>% pData() %>% dplyr::as_tibble() %>%
@@ -170,18 +167,20 @@ pov1 = summary(pca)$importance[2,1] # PC1 proportion of variance
 pov1 = round(pov1*100,digits=2)
 pov2 = summary(pca)$importance[2,2] # PC2 proportion of variance
 pov2 = round(pov2*100,digits=2)
+pov3 = summary(pca)$importance[2,3] # PC3 proportion of variance
+pov3 = round(pov3*100,digits=2)
 
 ## Create PCA Plot ##
-name = "PDO_labeled_PCA.pdf"
-ggplot(PCbeta,aes(x=PC1,y=PC2,col=group))+
+name = "PDO_labeled_PCA_PC23.pdf"
+ggplot(PCbeta,aes(x=PC2,y=PC3,col=group))+
   geom_point(size=3)+ # sets point size
-  geom_text(aes(label=rownames(pData(bs.filtered.bsseq))),size=2,nudge_x=0,nudge_y=5)+ # sets label size and position
+  geom_text(aes(label=rownames(pData(bs.filtered.bsseq))),size=2,nudge_x=5,nudge_y=20)+ # sets label size and position
   theme_classic()+ # gets theme
   theme(axis.text=element_text(size=3), axis.title=element_text(size=8),plot.title = element_text(size=10))+ # sets size of axis labels and title
   scale_color_manual(values = c("#4DAF4A", "#377EB8", "#E41A1C", "#FF7F00", "#984EA3")) + 
   ggtitle(paste("PCA of Methylation at", ncol(beta) ,"CpG Sites",sep=" "))+ # adds title
-  xlab(paste("PC 1 (", pov1, "%)", sep = ""))+ # labels PC1
-  ylab(paste("PC 2 (", pov2, "%)", sep = "")) # labels PC2
+  xlab(paste("PC 2 (", pov2, "%)", sep = ""))+ # labels PC1
+  ylab(paste("PC 3 (", pov3, "%)", sep = "")) # labels PC2
 ggsave(filename = paste("PDO_Global/", name), plot = last_plot(), device = pdf(), width = 5.5, height = 4, path = getwd()) # saves PCA plot
 
 ## Make global density plots ##

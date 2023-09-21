@@ -83,7 +83,7 @@ countEnrich <- function (project = c("TM", "MPN", "EL", "NT", "sub"), type = c("
 # CpG and genic enrichment testing plots ----------------------------------------
 theme = theme(text = element_text(size = 6), axis.text = element_text(size = 6), 
               axis.title = element_text(size = 6), strip.text = element_text(size = 6), 
-              legend.text = element_text(size = 6)) 
+              legend.text = element_text(size = 6)) + geom_bar(stat = "identity", color = "Black", size = .5)
 
 theme2 = theme(axis.text.y = element_blank(),
                axis.ticks.y = element_blank(),
